@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тестирование Kafka и PostgreSQL</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, select {
+            width: 100%;
+            padding: 8px;
+            box-sizing: border-box;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .results {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f8f8f8;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        pre {
+            background-color: #eee;
+            padding: 10px;
+            overflow: auto;
+        }
+        .console {
+            margin-top: 20px;
+            background-color: #000;
+            color: #0f0;
+            padding: 10px;
+            font-family: monospace;
+            border-radius: 4px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>Тестирование аналитики</h1>
+    
+    <div class="form-group">
+        <label for="event_type">Тип события:</label>
+        <select id="event_type">
+            <option value="page_view">Просмотр страницы</option>
+            <option value="button_click">Клик по кнопке</option>
+            <option value="form_submit">Отправка формы</option>
+            <option value="signup">Регистрация</option>
+            <option value="login">Вход</option>
+        </select>
+    </div>
+    
+    <div class="form-group">
+        <label for="custom_data">Дополнительные данные (JSON):</label>
+        <input type="text" id="custom_data" placeholder='{"key": "value"}' value='{"test": "example"}'>
+    </div>
+    
+    <button id="send_data" onclick="console.log('Кнопка нажата (onclick)'); return false;">Отправить данные</button>
+    
+    <div class="results" id="results" style="display: none;">
+        <h3>Результат отправки:</h3>
+        <pre id="result_content"></pre>
+    </div>
+    
+    <div class="console" id="console_log">
+        <div>Консоль:</div>
+    </div>
+    
+    <script>
+        // Перехватываем вывод в консоль для отображения на странице
+        (function() {
+            const consoleLog = document.getElementById('console_log');
+            const oldConsoleLog = console.log;
+            
+            console.log = function(message) {
+                oldConsoleLog.apply(console, arguments);
+                
+                if (typeof message === 'object') {
+                    try {
+                        message = JSON.stringify(message, null, 2);
+                    } catch (e) {
+                        message = String(message);
+                    }
+                }
+                
+                const logLine = document.createElement('div');
+                logLine.textContent = '> ' + message;
+                consoleLog.appendChild(logLine);
+                consoleLog.scrollTop = consoleLog.scrollHeight;
+            };
+            
+            console.error = function(message) {
+                oldConsoleLog.apply(console, arguments);
+                
+                if (typeof message === 'object') {
+                    try {
+                        message = JSON.stringify(message, null, 2);
+                    } catch (e) {
+                        message = String(message);
+                    }
+                }
+                
+                const logLine = document.createElement('div');
+                logLine.textContent = '> ERROR: ' + message;
+                logLine.style.color = 'red';
+                consoleLog.appendChild(logLine);
+                consoleLog.scrollTop = consoleLog.scrollHeight;
+            };
+            
+            console.log('Консоль инициализирована');
+        })();
+    </script>
+    
+    <!-- Подключаем скрипт для обработки формы -->
+    <script src="/static/js/main.js"></script>
+    
+    <!-- Тестовый скрипт для прямой отправки данных -->
+    <script>
+        // Прямая отправка данных при загрузке страницы
+        document.getElementById('send_data').addEventListener('click', function(e) {
+            e.preventDefault();
+            console.log('Обработчик события click на кнопке активирован');
+            
+            // Собираем данные
+            const eventType = document.getElementById('event_type').value;
+            let customData = {};
+            
+            try {
+                const customDataInput = document.getElementById('custom_data').value;
+                if (customDataInput) {
+                    customData = JSON.parse(customDataInput);
+                }
+            } catch (e) {
+                alert('Ошибка в формате JSON данных!');
+                console.error('Ошибка JSON:', e);
+                return;
+            }
+            
+            // Создаем объект данных для отправки
+            const data = {
+                event_type: eventType,
+                ...customData
+            };
+            
+            console.log('Отправляем данные:', data);
+            
+            // Отправляем данные напрямую
+            fetch('/api/send-data', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => {
+                console.log('Получен ответ:', response.status, response.statusText);
+                return response.json();
+            })
+            .then(result => {
+                console.log('Результат:', result);
+                document.getElementById('result_content').textContent = JSON.stringify(result, null, 2);
+                document.getElementById('results').style.display = 'block';
+            })
+            .catch(error => {
+                console.error('Ошибка при отправке данных:', error);
+                document.getElementById('result_content').textContent = 'Ошибка: ' + error.message;
+                document.getElementById('results').style.display = 'block';
+            });
+        });
+    </script>
+</body>
+</html> 
