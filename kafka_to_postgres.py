@@ -56,8 +56,12 @@ def process_message(msg_value):
 def try_jdbc_connection():
     """Пробует установить JDBC соединение с PostgreSQL."""
     try:
-        import jaydebeapi
-        import jpype
+        try:
+            import jaydebeapi
+            import jpype
+        except ImportError:
+            logger.warning("Модули jaydebeapi/jpype не установлены. JDBC подключение недоступно.")
+            return False
         
         # Проверяем, запущена ли JVM
         if not jpype.isJVMStarted():
