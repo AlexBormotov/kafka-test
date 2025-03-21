@@ -85,7 +85,7 @@
         <input type="text" id="custom_data" placeholder='{"key": "value"}' value='{"test": "example"}'>
     </div>
     
-    <button id="send_data" onclick="console.log('Кнопка нажата (onclick)'); return false;">Отправить данные</button>
+    <button id="send_data">Отправить данные</button>
     
     <div class="results" id="results" style="display: none;">
         <h3>Результат отправки:</h3>
@@ -143,60 +143,5 @@
     
     <!-- Подключаем скрипт для обработки формы -->
     <script src="/static/js/main.js"></script>
-    
-    <!-- Тестовый скрипт для прямой отправки данных -->
-    <script>
-        // Прямая отправка данных при загрузке страницы
-        document.getElementById('send_data').addEventListener('click', function(e) {
-            e.preventDefault();
-            console.log('Обработчик события click на кнопке активирован');
-            
-            // Собираем данные
-            const eventType = document.getElementById('event_type').value;
-            let customData = {};
-            
-            try {
-                const customDataInput = document.getElementById('custom_data').value;
-                if (customDataInput) {
-                    customData = JSON.parse(customDataInput);
-                }
-            } catch (e) {
-                alert('Ошибка в формате JSON данных!');
-                console.error('Ошибка JSON:', e);
-                return;
-            }
-            
-            // Создаем объект данных для отправки
-            const data = {
-                event_type: eventType,
-                ...customData
-            };
-            
-            console.log('Отправляем данные:', data);
-            
-            // Отправляем данные напрямую
-            fetch('/api/send-data', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(data)
-            })
-            .then(response => {
-                console.log('Получен ответ:', response.status, response.statusText);
-                return response.json();
-            })
-            .then(result => {
-                console.log('Результат:', result);
-                document.getElementById('result_content').textContent = JSON.stringify(result, null, 2);
-                document.getElementById('results').style.display = 'block';
-            })
-            .catch(error => {
-                console.error('Ошибка при отправке данных:', error);
-                document.getElementById('result_content').textContent = 'Ошибка: ' + error.message;
-                document.getElementById('results').style.display = 'block';
-            });
-        });
-    </script>
 </body>
 </html> 
