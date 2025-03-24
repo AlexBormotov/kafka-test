@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request, jsonify
 import datetime
 import logging
-from kafka_integration import init_kafka, get_kafka_client
+from kafka_integration import init_kafka
 import uuid
 
 # Настройка логгирования
