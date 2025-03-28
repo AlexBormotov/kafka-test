@@ -11,8 +11,9 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
-# Инициализация Kafka клиента
+# Инициализация Kafka клиентов
 kafka_client = None
+mouse_coordinates_client = None
 
 @app.route('/')
 def index():
@@ -94,6 +95,50 @@ def send_data():
         return jsonify({"status": "success", "message": "Данные успешно получены"})
     except Exception as e:
         logger.error(f"Ошибка при обработке запроса: {e}", exc_info=True)
+        return jsonify({"status": "error", "message": f"Ошибка: {str(e)}"}), 500
+
+@app.route('/api/coordinates', methods=['POST'])
+def receive_coordinates():
+    """Принимает координаты мыши и публикует их в Kafka."""
+    global mouse_coordinates_client
+    if mouse_coordinates_client is None:
+        logger.info("Инициализация Kafka клиента для координат мыши...")
+        mouse_coordinates_client = init_kafka(bootstrap_servers='kafka:9092', topic='mouse_coordinates')
+        logger.info("Kafka клиент для координат мыши инициализирован")
+    
+    try:
+        # Получаем данные из запроса
+        data = request.json or {}
+        logger.info(f"Получены координаты: {data}")
+        
+        # Добавляем временную метку
+        data['timestamp'] = datetime.datetime.now().isoformat()
+        
+        # Добавляем IP-адрес и User-Agent
+        data['ip_address'] = request.remote_addr
+        data['user_agent'] = request.headers.get('User-Agent', '')
+        
+        # Получаем или генерируем user_id
+        if 'userId' not in data:
+            data['userId'] = str(uuid.uuid4())
+        
+        # Отправляем данные в Kafka
+        if mouse_coordinates_client:
+            success = mouse_coordinates_client.send_message(data)
+            if success:
+                logger.info(f"Координаты успешно отправлены в топик mouse_coordinates: x={data.get('x')}, y={data.get('y')}")
+                # Также записываем в лог
+                with open('logs/mouse-coordinates.log', 'a') as log_file:
+                    log_file.write(json.dumps(data) + '\n')
+                return jsonify({"status": "success", "message": "Координаты получены и отправлены в Kafka"})
+            else:
+                logger.error("Ошибка при отправке координат в Kafka")
+                return jsonify({"status": "error", "message": "Ошибка при отправке координат в Kafka"}), 500
+        else:
+            logger.error("Kafka клиент для координат не инициализирован")
+            return jsonify({"status": "error", "message": "Kafka клиент не инициализирован"}), 500
+    except Exception as e:
+        logger.error(f"Ошибка при обработке координат: {e}", exc_info=True)
         return jsonify({"status": "error", "message": f"Ошибка: {str(e)}"}), 500
 
 def log_mouse_movement(data):
