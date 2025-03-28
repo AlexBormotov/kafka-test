@@ -67,7 +67,7 @@ services:
       postgres:
         condition: service_healthy
     ports:
-      - "5000:5000"
+      - "5001:5000"
     volumes:
       - .:/app
       - ./static:/app/static

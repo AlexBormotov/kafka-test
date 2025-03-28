@@ -3,7 +3,6 @@ import logging
 import time
 import socket
 from kafka import KafkaConsumer
-from datetime import datetime
 from db_models import get_db_manager
 import os
 
@@ -53,58 +52,9 @@ def process_message(msg_value):
         logger.error(f"Ошибка при обработке сообщения: {e}", exc_info=True)
         return None
 
-def try_jdbc_connection():
-    """Пробует установить JDBC соединение с PostgreSQL."""
-    try:
-        try:
-            import jaydebeapi
-            import jpype
-        except ImportError:
-            logger.warning("Модули jaydebeapi/jpype не установлены. JDBC подключение недоступно.")
-            return False
-        
-        # Проверяем, запущена ли JVM
-        if not jpype.isJVMStarted():
-            logger.info("Запуск JVM для JDBC соединения")
-            jpype.startJVM()
-        
-        # Параметры подключения
-        jdbc_url = "jdbc:postgresql://postgres:5432/userdata"
-        jdbc_driver = "org.postgresql.Driver"
-        jdbc_jar = "/app/postgresql-42.6.0.jar"  # Путь к драйверу PostgreSQL JDBC
-        
-        # Если JAR файл не найден, пробуем скачать его
-        if not os.path.exists(jdbc_jar):
-            logger.warning(f"JDBC драйвер не найден по пути {jdbc_jar}")
-            logger.info("Использую прямое подключение через SQLAlchemy")
-            return False
-        
-        # Пробуем подключиться
-        conn = jaydebeapi.connect(
-            jdbc_driver,
-            jdbc_url,
-            ["postgres", "postgres"],
-            jdbc_jar
-        )
-        
-        with conn.cursor() as cursor:
-            cursor.execute("SELECT 1")
-            result = cursor.fetchone()
-            logger.info(f"JDBC соединение успешно установлено: {result}")
-        
-        conn.close()
-        return True
-    except Exception as e:
-        logger.warning(f"Не удалось установить JDBC соединение: {e}")
-        logger.info("Продолжаю работу с прямым подключением SQLAlchemy")
-        return False
-
 def wait_for_services():
     """Проверяет доступность сервисов Kafka и PostgreSQL."""
     start_time = time.time()
-    
-    # Пробуем JDBC соединение с PostgreSQL
-    try_jdbc_connection()
     
     # Ждем пока сервисы будут доступны или истечет время ожидания
     while time.time() - start_time < MAX_WAIT_TIME:
