@@ -64,4 +64,10 @@ document.addEventListener('DOMContentLoaded', function() {
     } else {
         console.error('Кнопка отправки данных не найдена!');
     }
-}); 
+});
+
+// Здесь может быть дополнительный JavaScript-код для основного приложения
+// В данный момент весь необходимый код содержится в шаблоне index.html
+// и модуле static/js/mouseTracker.js
+
+console.log('main.js loaded - use for legacy or additional functionality'); 

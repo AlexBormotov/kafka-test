@@ -1,27 +1,13 @@
-FROM python:3.9-slim
+FROM nginx:alpine
 
-WORKDIR /app
+# Копируем файлы проекта в директорию nginx
+COPY index.html /usr/share/nginx/html/
+COPY mouseTracker.js /usr/share/nginx/html/
+COPY README.md /usr/share/nginx/html/
 
-# Установка необходимых пакетов
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    postgresql-client \
-    && rm -rf /var/lib/apt/lists/*
+# Настраиваем nginx для обработки запросов к API
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Копируем и устанавливаем зависимости
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+EXPOSE 80
 
-# Создаем структуру директорий для статических файлов
-RUN mkdir -p /app/static/js
-
-# Копируем статические файлы отдельно (чтобы улучшить кэширование при сборке)
-COPY static/ /app/static/
-
-# Копируем шаблоны отдельно
-COPY templates/ /app/templates/
-
-# Копируем исходный код
-COPY *.py /app/
-
-# По умолчанию запускаем компонент для обработки Kafka -> PostgreSQL
-CMD ["python", "kafka_to_postgres.py"] 
+CMD ["nginx", "-g", "daemon off;"] 

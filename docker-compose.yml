@@ -1,111 +1,33 @@
 version: '3'
 
 services:
-  zookeeper:
-    image: confluentinc/cp-zookeeper:latest
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
     ports:
-      - "2181:2181"
-    environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
-      ZOOKEEPER_TICK_TIME: 2000
-    networks:
-      - kafka-net
-    healthcheck:
-      test: ["CMD", "nc", "-z", "localhost", "2181"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-
-  kafka:
-    image: confluentinc/cp-kafka:latest
-    depends_on:
-      - zookeeper
-    ports:
-      - "9092:9092"
-      - "29092:29092"
-    environment:
-      KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,EXTERNAL://0.0.0.0:29092
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,EXTERNAL://localhost:29092
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
-    networks:
-      - kafka-net
-    healthcheck:
-      test: ["CMD", "nc", "-z", "localhost", "9092"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-
-  postgres:
-    image: postgres:15-alpine
-    ports:
-      - "5432:5432"
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: userdata
+      - "8080:80"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - ./logs:/var/log/nginx
+    restart: unless-stopped
     networks:
-      - kafka-net
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
+      - mouse-tracker-network
 
-  # Сервис для запуска Flask приложения
-  web-app:
-    build: .
-    depends_on:
-      kafka:
-        condition: service_healthy
-      postgres:
-        condition: service_healthy
-    ports:
-      - "5001:5000"
+  # API сервер на Node.js для логирования координат мыши
+  api:
+    image: node:alpine
     volumes:
       - .:/app
-      - ./static:/app/static
-    command: python app.py
+      - ./logs:/app/logs
+    working_dir: /app
+    command: sh -c "mkdir -p /app/logs && node backend-mock.js"
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
     networks:
-      - kafka-net
-    restart: on-failure
-    environment:
-      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      FLASK_ENV: development
-      FLASK_DEBUG: 1
+      - mouse-tracker-network
 
-  # Сервис для обработки сообщений из Kafka и сохранения в PostgreSQL
-  python-app:
-    build: .
-    depends_on:
-      kafka:
-        condition: service_healthy
-      postgres:
-        condition: service_healthy
-    volumes:
-      - .:/app
-    command: python kafka_to_postgres.py
-    networks:
-      - kafka-net
-    restart: on-failure
-    environment:
-      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      DB_HOST: postgres
-
-volumes:
-  zookeeper_data:
-    driver: local
-  kafka_data:
-    driver: local
-  postgres_data:
-    driver: local
-
+# Создаем общую сеть для коммуникации между контейнерами
 networks:
-  kafka-net:
+  mouse-tracker-network:
     driver: bridge 

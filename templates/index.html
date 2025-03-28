@@ -3,145 +3,213 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Тестирование Kafka и PostgreSQL</title>
+    <title>Система аналитики</title>
     <style>
         body {
             font-family: Arial, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
+            margin: 0;
             padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
-        h1 {
+        
+        .container {
+            width: 100%;
+            max-width: 800px;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        h1, h2 {
             color: #333;
-            text-align: center;
         }
-        .form-group {
+        
+        .event-section, .mouse-section {
+            margin-top: 30px;
+        }
+        
+        button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            background-color: #4285f4;
+            color: white;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        
+        button:hover {
+            background-color: #3367d6;
+        }
+        
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        
+        #result {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f5f5f5;
+            border-radius: 4px;
+        }
+        
+        #coordinates {
+            background-color: #f0f0f0;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            min-height: 40px;
             margin-bottom: 15px;
         }
-        label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
+        
+        .status {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 4px;
         }
-        input, select {
+        
+        .status.success {
+            background-color: #e6f4ea;
+            color: #137333;
+        }
+        
+        .status.error {
+            background-color: #fce8e6;
+            color: #c5221f;
+        }
+        
+        .buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .section-divider {
+            height: 1px;
+            background-color: #ccc;
             width: 100%;
-            padding: 8px;
-            box-sizing: border-box;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-        }
-        button {
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            padding: 10px 15px;
-            cursor: pointer;
-            border-radius: 4px;
-            font-size: 16px;
-        }
-        button:hover {
-            background-color: #45a049;
-        }
-        .results {
-            margin-top: 20px;
-            padding: 15px;
-            background-color: #f8f8f8;
-            border-radius: 4px;
-            border: 1px solid #ddd;
-        }
-        pre {
-            background-color: #eee;
-            padding: 10px;
-            overflow: auto;
-        }
-        .console {
-            margin-top: 20px;
-            background-color: #000;
-            color: #0f0;
-            padding: 10px;
-            font-family: monospace;
-            border-radius: 4px;
-            max-height: 200px;
-            overflow-y: auto;
+            margin: 30px 0;
         }
     </style>
 </head>
 <body>
-    <h1>Тестирование аналитики</h1>
-    
-    <div class="form-group">
-        <label for="event_type">Тип события:</label>
-        <select id="event_type">
-            <option value="page_view">Просмотр страницы</option>
-            <option value="button_click">Клик по кнопке</option>
-            <option value="form_submit">Отправка формы</option>
-            <option value="signup">Регистрация</option>
-            <option value="login">Вход</option>
-        </select>
+    <div class="container">
+        <h1>Система аналитики с Kafka и PostgreSQL</h1>
+        
+        <!-- Секция для событий кнопок -->
+        <div class="event-section">
+            <h2>Отправка событий</h2>
+            <p>Нажмите на кнопку, чтобы отправить событие в Kafka:</p>
+            
+            <button id="sendEventBtn">Отправить событие "click"</button>
+            <button id="sendCustomEventBtn">Отправить пользовательское событие</button>
+            
+            <div id="result">Результат отправки будет показан здесь...</div>
+        </div>
+        
+        <div class="section-divider"></div>
+        
+        <!-- Секция для отслеживания мыши -->
+        <div class="mouse-section">
+            <h2>Отслеживание движения мыши</h2>
+            <p>Эта функция отслеживает движение мыши с ограничением частоты событий (каждые 250 мс).</p>
+            
+            <h3>Текущие координаты:</h3>
+            <div id="coordinates">Двигайте мышью по экрану...</div>
+            
+            <div id="mouseStatus" class="status"></div>
+            
+            <div class="buttons">
+                <button id="startBtn">Запустить отслеживание</button>
+                <button id="stopBtn" disabled>Остановить отслеживание</button>
+            </div>
+        </div>
     </div>
     
-    <div class="form-group">
-        <label for="custom_data">Дополнительные данные (JSON):</label>
-        <input type="text" id="custom_data" placeholder='{"key": "value"}' value='{"test": "example"}'>
-    </div>
-    
-    <button id="send_data">Отправить данные</button>
-    
-    <div class="results" id="results" style="display: none;">
-        <h3>Результат отправки:</h3>
-        <pre id="result_content"></pre>
-    </div>
-    
-    <div class="console" id="console_log">
-        <div>Консоль:</div>
-    </div>
-    
+    <script src="/static/js/mouseTracker.js"></script>
     <script>
-        // Перехватываем вывод в консоль для отображения на странице
-        (function() {
-            const consoleLog = document.getElementById('console_log');
-            const oldConsoleLog = console.log;
+        // Обработчики для основных событий
+        const sendEventBtn = document.getElementById('sendEventBtn');
+        const sendCustomEventBtn = document.getElementById('sendCustomEventBtn');
+        const resultElement = document.getElementById('result');
+        
+        sendEventBtn.addEventListener('click', function() {
+            sendEvent('click');
+        });
+        
+        sendCustomEventBtn.addEventListener('click', function() {
+            const customEvent = prompt('Введите тип события:', 'custom_event');
+            if (customEvent) {
+                sendEvent(customEvent);
+            }
+        });
+        
+        function sendEvent(eventType) {
+            resultElement.textContent = 'Отправка события...';
             
-            console.log = function(message) {
-                oldConsoleLog.apply(console, arguments);
-                
-                if (typeof message === 'object') {
-                    try {
-                        message = JSON.stringify(message, null, 2);
-                    } catch (e) {
-                        message = String(message);
-                    }
-                }
-                
-                const logLine = document.createElement('div');
-                logLine.textContent = '> ' + message;
-                consoleLog.appendChild(logLine);
-                consoleLog.scrollTop = consoleLog.scrollHeight;
-            };
+            fetch('/api/send-data', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    event_type: eventType,
+                    data: { timestamp: new Date().toISOString() }
+                }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                resultElement.textContent = `Событие "${eventType}" успешно отправлено. Ответ: ${JSON.stringify(data)}`;
+            })
+            .catch(error => {
+                resultElement.textContent = `Ошибка при отправке события: ${error.message}`;
+            });
+        }
+        
+        // Обработчики для отслеживания мыши
+        const coordsDisplay = document.getElementById('coordinates');
+        const statusDisplay = document.getElementById('mouseStatus');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        
+        // Подписываемся на событие движения мыши для отображения координат
+        document.addEventListener('mousemove', event => {
+            const { clientX, clientY } = event;
+            coordsDisplay.textContent = `X: ${clientX}, Y: ${clientY}`;
+        });
+        
+        // Показываем статус API-запросов
+        window.addEventListener('mousetracker:status', event => {
+            const { success, message } = event.detail;
             
-            console.error = function(message) {
-                oldConsoleLog.apply(console, arguments);
-                
-                if (typeof message === 'object') {
-                    try {
-                        message = JSON.stringify(message, null, 2);
-                    } catch (e) {
-                        message = String(message);
-                    }
-                }
-                
-                const logLine = document.createElement('div');
-                logLine.textContent = '> ERROR: ' + message;
-                logLine.style.color = 'red';
-                consoleLog.appendChild(logLine);
-                consoleLog.scrollTop = consoleLog.scrollHeight;
-            };
+            statusDisplay.textContent = message;
+            statusDisplay.className = 'status ' + (success ? 'success' : 'error');
             
-            console.log('Консоль инициализирована');
-        })();
+            // Скрываем сообщение через 3 секунды
+            setTimeout(() => {
+                statusDisplay.textContent = '';
+                statusDisplay.className = 'status';
+            }, 3000);
+        });
+        
+        // Обработчики кнопок отслеживания мыши
+        startBtn.addEventListener('click', () => {
+            initMouseTracker();
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+        });
+        
+        stopBtn.addEventListener('click', () => {
+            stopMouseTracker();
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+        });
     </script>
-    
-    <!-- Подключаем скрипт для обработки формы -->
-    <script src="/static/js/main.js"></script>
 </body>
 </html> 
