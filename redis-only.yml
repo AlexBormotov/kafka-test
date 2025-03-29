@@ -1,0 +1,41 @@
+version: '3'
+
+services:
+  # Redis сервер для хранения последней позиции мыши
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+
+  # Сервис для тестирования работы с Redis
+  redis-tools:
+    build:
+      context: .
+      dockerfile: Dockerfile.python
+    volumes:
+      - .:/app
+      - ./logs:/app/logs
+    command: tail -f /dev/null  # Держим контейнер запущенным без выполнения основного скрипта
+    depends_on:
+      - redis
+      
+  # Grafana для визуализации данных
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3001:3000"
+    volumes:
+      - grafana-storage:/var/lib/grafana
+    environment:
+      - GF_INSTALL_PLUGINS=redis-datasource
+    restart: unless-stopped
+    depends_on:
+      - redis
+
+# Тома для хранения данных
+volumes:
+  redis-data: 
+  grafana-storage: 

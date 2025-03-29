@@ -1,11 +1,12 @@
 /**
  * Простой сервер Node.js для имитации API бэкенда
- * и логирования координат мыши
+ * и логирования координат мыши, а также отправки их в Kafka
  */
 
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const { Kafka } = require('kafkajs');
 
 // Создаем директорию для логов, если её нет
 const logDir = path.join(__dirname, 'logs');
@@ -15,6 +16,60 @@ if (!fs.existsSync(logDir)) {
 
 // Путь к файлу логов
 const logFile = path.join(logDir, 'mouse-coordinates.log');
+
+// Настройка Kafka
+const kafka = new Kafka({
+  clientId: 'mouse-tracker-api',
+  brokers: ['kafka:9092'],
+  retry: {
+    initialRetryTime: 300,
+    retries: 10
+  }
+});
+
+// Создаем продюсера
+const producer = kafka.producer();
+
+// Флаг, указывающий, подключены ли мы к Kafka
+let kafkaConnected = false;
+
+// Подключаемся к Kafka
+async function connectToKafka() {
+  try {
+    await producer.connect();
+    console.log('Успешное подключение к Kafka');
+    kafkaConnected = true;
+  } catch (error) {
+    console.error('Ошибка при подключении к Kafka:', error);
+    // Пробуем переподключиться через некоторое время
+    setTimeout(connectToKafka, 5000);
+  }
+}
+
+// Вызываем функцию подключения
+connectToKafka();
+
+// Отправляем сообщение в Kafka
+async function sendToKafka(topic, message) {
+  if (!kafkaConnected) {
+    console.log('Нет подключения к Kafka, сообщение не отправлено');
+    return false;
+  }
+  
+  try {
+    await producer.send({
+      topic,
+      messages: [
+        { value: JSON.stringify(message) }
+      ],
+    });
+    console.log(`Сообщение успешно отправлено в топик ${topic}`);
+    return true;
+  } catch (error) {
+    console.error(`Ошибка при отправке сообщения в Kafka: ${error}`);
+    return false;
+  }
+}
 
 // Создаем HTTP сервер
 const server = http.createServer((req, res) => {
@@ -40,13 +95,22 @@ const server = http.createServer((req, res) => {
     });
     
     // Обрабатываем полученные данные
-    req.on('end', () => {
+    req.on('end', async () => {
       try {
         const data = JSON.parse(body);
         const timestamp = new Date().toISOString();
         
+        // Добавляем временную метку
+        data.timestamp = timestamp;
+        
+        // Добавляем IP-адрес
+        data.ip_address = req.socket.remoteAddress;
+        
+        // Добавляем User-Agent если доступен
+        data.user_agent = req.headers['user-agent'] || '';
+        
         // Формируем строку лога с меткой времени
-        const logEntry = `${timestamp} | User: ${data.userId} | X: ${data.x}, Y: ${data.y}\n`;
+        const logEntry = JSON.stringify(data) + '\n';
         
         // Записываем в лог-файл
         fs.appendFile(logFile, logEntry, err => {
@@ -57,11 +121,15 @@ const server = http.createServer((req, res) => {
         
         console.log(`Получены координаты: X=${data.x}, Y=${data.y} от пользователя ${data.userId}`);
         
+        // Отправляем данные в Kafka
+        const kafkaResult = await sendToKafka('mouse_coordinates', data);
+        
         // Отправляем ответ
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ 
           status: 'success', 
-          message: 'Координаты получены и записаны' 
+          message: 'Координаты получены и записаны',
+          kafka_sent: kafkaResult
         }));
       } catch (error) {
         console.error('Ошибка обработки данных:', error);
