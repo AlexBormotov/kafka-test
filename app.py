@@ -22,7 +22,7 @@ def index():
     global kafka_client
     if kafka_client is None:
         logger.info("Инициализация Kafka клиента...")
-        kafka_client = init_kafka(bootstrap_servers='kafka:9092', topic='user-data')
+        kafka_client = init_kafka(bootstrap_servers='kafka1:9092,kafka2:9093', topic='user-data')
         logger.info("Kafka клиент инициализирован")
     
     return render_template('index.html')
@@ -34,7 +34,7 @@ def send_data():
     global kafka_client
     if kafka_client is None:
         logger.info("Инициализация Kafka клиента...")
-        kafka_client = init_kafka(bootstrap_servers='kafka:9092', topic='user-data')
+        kafka_client = init_kafka(bootstrap_servers='kafka1:9092,kafka2:9093', topic='user-data')
         logger.info("Kafka клиент инициализирован")
     
     # Логируем заголовки и содержимое запроса
@@ -103,7 +103,7 @@ def receive_coordinates():
     global mouse_coordinates_client
     if mouse_coordinates_client is None:
         logger.info("Инициализация Kafka клиента для координат мыши...")
-        mouse_coordinates_client = init_kafka(bootstrap_servers='kafka:9092', topic='mouse_coordinates')
+        mouse_coordinates_client = init_kafka(bootstrap_servers='kafka1:9092,kafka2:9093', topic='mouse_coordinates')
         logger.info("Kafka клиент для координат мыши инициализирован")
     
     try:

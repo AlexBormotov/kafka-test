@@ -14,7 +14,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Параметры подключения к Kafka
-KAFKA_BOOTSTRAP_SERVERS = os.getenv('KAFKA_BOOTSTRAP_SERVERS', 'kafka:9092')  # Имя сервиса из docker-compose
+KAFKA_BOOTSTRAP_SERVERS = os.getenv('KAFKA_BOOTSTRAP_SERVERS', 'kafka1:9092,kafka2:9093')  # Имя сервиса из docker-compose
 KAFKA_TOPIC = 'user-data'
 MAX_WAIT_TIME = 60  # Максимальное время ожидания в секундах
 
@@ -60,9 +60,16 @@ def wait_for_services():
     while time.time() - start_time < MAX_WAIT_TIME:
         # Проверяем Kafka
         try:
-            # Пробуем подключиться к Kafka
-            socket.create_connection(('kafka', 9092), timeout=5)
-            logger.info("Kafka доступна")
+            # Пробуем подключиться к первой ноде Kafka
+            socket.create_connection(('kafka1', 9092), timeout=5)
+            logger.info("Kafka 1 доступна")
+            
+            # Пробуем подключиться ко второй ноде Kafka
+            try:
+                socket.create_connection(('kafka2', 9093), timeout=5)
+                logger.info("Kafka 2 доступна")
+            except Exception as e:
+                logger.warning(f"Kafka 2 недоступна: {e}")
             
             # Проверяем PostgreSQL
             try:
@@ -73,7 +80,7 @@ def wait_for_services():
             except Exception as e:
                 logger.warning(f"PostgreSQL недоступна: {e}")
         except Exception as e:
-            logger.warning(f"Kafka недоступна: {e}")
+            logger.warning(f"Kafka 1 недоступна: {e}")
         
         # Ждем 5 секунд перед повторной проверкой
         logger.info("Ожидание доступности сервисов...")

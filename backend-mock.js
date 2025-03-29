@@ -20,7 +20,7 @@ const logFile = path.join(logDir, 'mouse-coordinates.log');
 // Настройка Kafka
 const kafka = new Kafka({
   clientId: 'mouse-tracker-api',
-  brokers: ['kafka:9092'],
+  brokers: ['kafka1:9092', 'kafka2:9093'],
   retry: {
     initialRetryTime: 300,
     retries: 10

@@ -10,24 +10,26 @@
 - Использование уникального идентификатора пользователя
 - Публикация данных в топик Kafka
 - Сохранение последней позиции мыши в Redis
+- Сохранение аналитических данных в PostgreSQL
 - Возможность включения и отключения отслеживания
 
 ## Архитектура
 
 Система состоит из следующих компонентов:
 - **Веб-интерфейс** - отслеживает движения мыши и отправляет координаты 
-- **Flask API** - принимает координаты и публикует их в Kafka
+- **API** - принимает координаты и публикует их в Kafka
 - **Kafka** - брокер сообщений для обработки событий
 - **Redis** - хранит последнюю позицию мыши для быстрого доступа
 - **Kafka-to-Redis** - консьюмер, сохраняющий данные из Kafka в Redis
+- **PostgreSQL** - сохраняет данные для долгосрочного анализа
+- **Kafka-to-PostgreSQL** - консьюмер, сохраняющий данные из Kafka в PostgreSQL
 
 ## Структура проекта
 
 - `app.py` - основное Flask-приложение с API-эндпоинтами
 - `mouseTracker.js` - модуль для отслеживания движения мыши
-- `direct-mouse-tracker.js` - модуль для прямой отправки на API-эндпоинт
 - `kafka_to_redis_consumer.py` - консьюмер для сохранения данных в Redis
-- `redis_tools.py` - утилита для работы с Redis
+- `kafka_to_postgres.py` - консьюмер для сохранения данных в PostgreSQL
 - `templates/` - HTML-шаблоны для веб-интерфейса
 - `static/` - статические файлы CSS и JavaScript
 - `docker-compose.yml` - файл для запуска всех компонентов в Docker
@@ -50,30 +52,6 @@ docker-compose up -d
 2. Нажать кнопку "Запустить отслеживание" или "Запустить прямое отслеживание"
 3. Проверить, что координаты мыши успешно отправляются в API
 
-### Проверка данных в Redis
-
-Для просмотра последней позиции мыши в Redis:
-```
-docker-compose exec kafka-to-redis python redis_tools.py get
-```
-
-### Управление Redis через утилиту
-
-Просмотр списка ключей:
-```
-docker-compose exec kafka-to-redis python redis_tools.py list
-```
-
-Установка значения:
-```
-docker-compose exec kafka-to-redis python redis_tools.py set my_key my_value
-```
-
-Удаление ключа:
-```
-docker-compose exec kafka-to-redis python redis_tools.py delete my_key
-```
-
 ## Интеграция в свой проект
 
 ```javascript
@@ -94,3 +72,13 @@ stopMouseTracker();
 
 Демонстрационная версия перехватывает запросы fetch для визуализации данных без реального сервера.
 В продакшн-версии обязательно настройте соответствующий обработчик на серверной стороне.
+
+Удалены тестовые, временные файлы и скрипты:
+- latest_analytics.txt
+- user_data_count.txt
+- count.txt
+- postgres_query_result.txt
+- redis_consumer.log
+- redis_tools.py
+- kafka_consumer_for_coordinates.py
+- redis-only.yml

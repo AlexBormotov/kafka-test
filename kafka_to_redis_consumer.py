@@ -23,7 +23,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Конфигурация Kafka
-KAFKA_BOOTSTRAP_SERVERS = 'kafka:9092'
+KAFKA_BOOTSTRAP_SERVERS = 'kafka1:9092,kafka2:9093'
 KAFKA_TOPIC = 'mouse_coordinates'
 KAFKA_GROUP_ID = 'redis-updater'
 

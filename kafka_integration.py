@@ -14,10 +14,10 @@ IN_DOCKER = os.path.exists('/.dockerenv')
 
 # Подбираем правильные адреса
 if IN_DOCKER:
-    DEFAULT_BOOTSTRAP_SERVERS = 'kafka:9092'
+    DEFAULT_BOOTSTRAP_SERVERS = 'kafka1:9092,kafka2:9093'
 else:
-    # Для локального запуска используем порт 29092 (внешний порт)
-    DEFAULT_BOOTSTRAP_SERVERS = 'localhost:29092'
+    # Для локального запуска используем порты 29092 и 29093 (внешние порты)
+    DEFAULT_BOOTSTRAP_SERVERS = 'localhost:29092,localhost:29093'
 
 class KafkaClient:
     """Класс для работы с Kafka."""
@@ -45,34 +45,56 @@ class KafkaClient:
     
     def _check_server_availability(self):
         """Проверяет доступность Kafka сервера и корректирует адрес при необходимости."""
-        # Возможные адреса Kafka
-        servers = [
-            self.bootstrap_servers,  # Основной адрес
-            'localhost:29092',       # Локальный внешний адрес
-            'localhost:9092',        # Локальный адрес
-            'kafka:9092'             # Адрес для Docker
-        ]
+        # Обрабатываем случай, когда передана строка с несколькими серверами
+        servers_to_check = []
+        
+        # Разбиваем строку bootstrap_servers, если в ней несколько серверов
+        if ',' in self.bootstrap_servers:
+            servers_to_check.extend(self.bootstrap_servers.split(','))
+        else:
+            servers_to_check.append(self.bootstrap_servers)
+            
+        # Добавляем другие возможные адреса Kafka
+        servers_to_check.extend([
+            'localhost:29092',  # Локальный внешний адрес
+            'localhost:9092',   # Локальный адрес
+            'kafka:9092'        # Адрес для Docker
+        ])
         
         # Исключаем дубликаты
-        unique_servers = list(set(servers))
+        unique_servers = list(set(servers_to_check))
         
         # Проверяем каждый адрес
+        available_servers = []
         for server in unique_servers:
-            host, port = server.split(':')
+            server = server.strip()  # Убираем лишние пробелы
             try:
+                host, port = server.split(':')
                 socket.create_connection((host, int(port)), timeout=3)
                 logger.info(f"Kafka сервер {server} доступен")
-                
-                # Используем доступный сервер
-                if server != self.bootstrap_servers:
-                    logger.info(f"Переключаемся на доступный сервер: {server}")
-                    self.bootstrap_servers = server
-                
-                return True
+                available_servers.append(server)
+            except ValueError as e:
+                logger.error(f"Неверный формат адреса сервера {server}: {e}")
             except (socket.timeout, socket.error) as e:
                 logger.warning(f"Kafka сервер {server} недоступен: {e}")
         
+        # Если нашли доступные серверы, используем их
+        if available_servers:
+            if len(available_servers) > 1:
+                # Если доступно несколько серверов, объединяем их обратно
+                new_bootstrap_servers = ','.join(available_servers)
+                if new_bootstrap_servers != self.bootstrap_servers:
+                    logger.info(f"Переключаемся на доступные серверы: {new_bootstrap_servers}")
+                    self.bootstrap_servers = new_bootstrap_servers
+            else:
+                # Если доступен только один сервер
+                if available_servers[0] != self.bootstrap_servers:
+                    logger.info(f"Переключаемся на доступный сервер: {available_servers[0]}")
+                    self.bootstrap_servers = available_servers[0]
+            return True
+        
         # Возвращаемся к исходному серверу, если ни один не доступен
+        logger.warning("Ни один из серверов Kafka не доступен")
         return False
     
     def _init_producer(self):
