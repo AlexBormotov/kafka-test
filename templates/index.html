@@ -51,6 +51,14 @@
             cursor: not-allowed;
         }
         
+        #sendCustomEventBtn {
+            background-color: #34a853;
+        }
+        
+        #sendCustomEventBtn:hover {
+            background-color: #2e8f49;
+        }
+        
         #result, #directApiResult {
             margin-top: 20px;
             padding: 10px;
@@ -115,7 +123,7 @@
             <p>Нажмите на кнопку, чтобы отправить событие в Kafka:</p>
             
             <button id="sendEventBtn">Отправить событие "click"</button>
-            <button id="sendCustomEventBtn">Отправить пользовательское событие</button>
+            <button id="sendCustomEventBtn">Отправить custom event</button>
             
             <div id="result">Результат отправки будет показан здесь...</div>
         </div>

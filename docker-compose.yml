@@ -1,18 +1,6 @@
 version: '3'
 
 services:
-  frontend:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    ports:
-      - "8080:80"
-    volumes:
-      - ./logs:/var/log/nginx
-    restart: unless-stopped
-    networks:
-      - mouse-tracker-network
-
   # API сервер на Node.js для логирования координат мыши
   api:
     image: node:alpine
@@ -113,7 +101,7 @@ services:
   postgres:
     image: postgres:latest
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - kafka-test_postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
@@ -156,25 +144,6 @@ services:
       - kafka1
       - kafka2
       - postgres
-    networks:
-      - mouse-tracker-network
-      - kafka-net
-
-  # Веб-приложение (Flask) для обработки данных
-  web-app:
-    build:
-      context: .
-      dockerfile: Dockerfile.python
-    volumes:
-      - .:/app
-      - ./logs:/app/logs
-    command: python app.py
-    ports:
-      - "5001:5000"
-    depends_on:
-      - kafka1
-      - kafka2
-      - redis
     networks:
       - mouse-tracker-network
       - kafka-net

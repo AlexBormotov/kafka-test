@@ -1,3 +1,8 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
 # INSTRUCTIONS FOR MCP SERVERS
 
 ## GITHUB
@@ -14,11 +19,11 @@
 
 ## BROWSER-TOOLS
 
-1. Команда для запуска: npx @agentdeskai/browser-tools-server@1.2.0
+1. Команда для запуска: npx -y @agentdeskai/browser-tools-server@1.2.0 --port 3025
 
 2. В момент запуска не делай больше ничего
 
-## DOCKER-MCP
+## DOCKER-MCP 
 
 1. Команда запуска npx -y @smithery/cli@latest run @smithery-ai/fetch --config "{}"
 

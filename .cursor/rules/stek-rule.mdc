@@ -1,3 +1,8 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
 # IMPORTANT RULES
 
 Если ты запускаешь docker image с базой данных, делай именнованный том, чтобы данные базы всегда сохранялись.
