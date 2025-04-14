@@ -38,12 +38,18 @@ deploy:
     - echo "$GOOGLE_CLOUD_KEY" > /tmp/key.json
     - gcloud auth activate-service-account --key-file=/tmp/key.json
     - gcloud config set project $GOOGLE_PROJECT_ID
+    - gcloud config set compute/zone $GOOGLE_COMPUTE_ZONE
+    - echo "Enabling OS Login..."
+    - gcloud compute instances add-metadata $VM_NAME --metadata enable-oslogin=TRUE
+    - export CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE=/tmp/key.json
+    - SA_ID=$(gcloud iam service-accounts describe $SA_EMAIL --format='value(uniqueId)')
+    - echo "Service account ID: $SA_ID"
   script:
     - echo "Deploying to web-server..."
     - apt-get update -qq
     - apt-get install -qq -y google-cloud-sdk
     - echo "Copying files to VM..."
-    - gcloud compute scp --recurse ./dist/* $VM_NAME:/home/sa_kafka_test/kafka-test/ --zone=$GOOGLE_COMPUTE_ZONE
-    - gcloud compute ssh $VM_NAME --zone=$GOOGLE_COMPUTE_ZONE --command="cd /home/sa_kafka_test/kafka-test && pip install -r requirements.txt && python setup.py install"
+    - gcloud compute scp --recurse ./dist/* sa_${SA_ID}@$VM_NAME:/home/sa_kafka_test/kafka-test/ --zone=$GOOGLE_COMPUTE_ZONE
+    - gcloud compute ssh sa_${SA_ID}@$VM_NAME --zone=$GOOGLE_COMPUTE_ZONE --command="cd /home/sa_kafka_test/kafka-test && pip install -r requirements.txt && python setup.py install"
   only:
     - main 
