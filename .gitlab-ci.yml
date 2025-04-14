@@ -34,7 +34,7 @@ deploy:
   image: python:3.11
   before_script:
     - echo "Setting up Google Cloud credentials..."
-    - echo $GOOGLE_CLOUD_KEY > /tmp/google-cloud-key.json
+    - echo "$GOOGLE_CLOUD_KEY" > /tmp/google-cloud-key.json
     - export GOOGLE_APPLICATION_CREDENTIALS=/tmp/google-cloud-key.json
   script:
     - echo "Deploying to web-server..."
