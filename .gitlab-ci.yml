@@ -8,6 +8,7 @@ variables:
   GOOGLE_COMPUTE_ZONE: "us-central1-a" # Не менять!
   DOCKER_DRIVER: overlay2
   VM_NAME: "web-server"
+  SA_EMAIL: "grit-provisioner-auto@northern-shield-453920-a4.iam.gserviceaccount.com"
 
 test:
   stage: test
@@ -57,7 +58,10 @@ deploy:
     - gcloud auth activate-service-account --key-file=$GOOGLE_APPLICATION_CREDENTIALS
     - gcloud config set project $GOOGLE_PROJECT_ID
     - echo "Copying files to VM..."
-    - gcloud compute scp --recurse ./dist/* $VM_NAME:/home/alexvicbor/kafka-test/ --zone=$GOOGLE_COMPUTE_ZONE
-    - gcloud compute ssh $VM_NAME --zone=$GOOGLE_COMPUTE_ZONE --command="cd /home/alexvicbor/kafka-test && pip install -r requirements.txt && python setup.py install"
+    - gcloud compute os-login describe-profile
+    - SA_USERNAME="sa_$(echo $SA_EMAIL | cut -d '@' -f1)"
+    - echo "Using service account username: $SA_USERNAME"
+    - gcloud compute scp --recurse ./dist/* $SA_USERNAME@$VM_NAME:/home/$SA_USERNAME/kafka-test/ --zone=$GOOGLE_COMPUTE_ZONE --tunnel-through-iap
+    - gcloud compute ssh $SA_USERNAME@$VM_NAME --zone=$GOOGLE_COMPUTE_ZONE --tunnel-through-iap --command="cd /home/$SA_USERNAME/kafka-test && pip install -r requirements.txt && python setup.py install"
   only:
     - main 
