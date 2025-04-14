@@ -21,7 +21,6 @@ build:
   stage: build
   image: python:3.11
   script:
-    - echo "Building project..."
     - pip install -r requirements.txt
     - python setup.py build
   artifacts:
@@ -32,36 +31,16 @@ build:
 
 deploy:
   stage: deploy
-  image: python:3.11
+  image: google/cloud-sdk:latest
   before_script:
-    - |
-      echo "Setting up Google Cloud credentials..."
-      echo "Checking if /tmp exists..."
-      ls -la /tmp
-      echo "Creating credentials file..."
-      cat $GOOGLE_CLOUD_KEY > /tmp/google-cloud-key.json
-      echo "Checking created file..."
-      ls -l /tmp/google-cloud-key.json
-      echo "First few lines of the credentials file:"
-      head -n 3 /tmp/google-cloud-key.json
-      echo "File permissions:"
-      stat /tmp/google-cloud-key.json
-      export GOOGLE_APPLICATION_CREDENTIALS=/tmp/google-cloud-key.json
-      echo "Environment variable set to: $GOOGLE_APPLICATION_CREDENTIALS"
+    - echo "$GOOGLE_CLOUD_KEY" > /tmp/google-cloud-key.json
+    - export GOOGLE_APPLICATION_CREDENTIALS=/tmp/google-cloud-key.json
+    - gcloud auth activate-service-account --quiet --key-file=$GOOGLE_APPLICATION_CREDENTIALS
+    - gcloud config set project $GOOGLE_PROJECT_ID --quiet
   script:
-    - echo "Deploying to web-server..."
-    - apt-get update -qq
-    - echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
-    - curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key --keyring /usr/share/keyrings/cloud.google.gpg add -
-    - apt-get update -qq
-    - apt-get install -qq -y google-cloud-sdk
-    - gcloud auth activate-service-account --key-file=$GOOGLE_APPLICATION_CREDENTIALS
-    - gcloud config set project $GOOGLE_PROJECT_ID
-    - echo "Copying files to VM..."
-    - gcloud compute os-login describe-profile
-    - SA_USERNAME="sa_$(echo $SA_EMAIL | cut -d '@' -f1)"
-    - echo "Using service account username: $SA_USERNAME"
-    - gcloud compute scp --recurse ./dist/* $SA_USERNAME@$VM_NAME:/home/$SA_USERNAME/kafka-test/ --zone=$GOOGLE_COMPUTE_ZONE --tunnel-through-iap
-    - gcloud compute ssh $SA_USERNAME@$VM_NAME --zone=$GOOGLE_COMPUTE_ZONE --tunnel-through-iap --command="cd /home/$SA_USERNAME/kafka-test && pip install -r requirements.txt && python setup.py install"
+    - SA_USERNAME="sa_$(echo $SA_EMAIL | cut -d@ -f1)"
+    - gcloud compute os-login describe-profile --quiet
+    - gcloud compute scp --quiet --recurse ./dist/* $SA_USERNAME@$VM_NAME:/home/$SA_USERNAME/kafka-test/ --zone=$GOOGLE_COMPUTE_ZONE --tunnel-through-iap
+    - gcloud compute ssh --quiet $SA_USERNAME@$VM_NAME --zone=$GOOGLE_COMPUTE_ZONE --tunnel-through-iap --command="cd /home/$SA_USERNAME/kafka-test && pip install -r requirements.txt && python setup.py install"
   only:
     - main 
