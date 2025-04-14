@@ -1,0 +1,51 @@
+stages:
+  - test
+  - build
+  - deploy
+
+variables:
+  GOOGLE_PROJECT_ID: "northern-shield-453920-a4" # Не менять!
+  GOOGLE_COMPUTE_ZONE: "us-central1-a" # Не менять!
+  DOCKER_DRIVER: overlay2
+  VM_NAME: "web-server"
+
+test:
+  stage: test
+  image: python:3.13
+  script:
+    - pip install -r requirements.txt
+    - python -m pytest
+  tags:
+    - gcp
+    - python
+
+build:
+  stage: build
+  image: python:3.13
+  script:
+    - echo "Building project..."
+    - pip install -r requirements.txt
+    - python setup.py build
+  artifacts:
+    paths:
+      - build/
+      - dist/
+      - requirements.txt
+  tags:
+    - gcp
+    - python
+
+deploy:
+  stage: deploy
+  script:
+    - echo "Deploying to web-server..."
+    - apt-get update -qq
+    - apt-get install -qq -y google-cloud-sdk
+    - echo "Copying files to VM..."
+    - gcloud compute scp --recurse ./dist/* $VM_NAME:/home/alexvicbor/kafka-test/ --zone=$GOOGLE_COMPUTE_ZONE
+    - gcloud compute ssh $VM_NAME --zone=$GOOGLE_COMPUTE_ZONE --command="cd /home/alexvicbor/kafka-test && pip install -r requirements.txt && python setup.py install"
+  only:
+    - main
+  tags:
+    - gcp
+    - python 

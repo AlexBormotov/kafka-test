@@ -1,0 +1,162 @@
+version: '3'
+
+services:
+  # API сервер на Node.js для логирования координат мыши
+  api:
+    image: node:alpine
+    volumes:
+      - .:/app
+      - ./logs:/app/logs
+    working_dir: /app
+    command: sh -c "mkdir -p /app/logs && node backend-mock.js"
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    networks:
+      - mouse-tracker-network
+      - kafka-net
+      
+  # Redis сервер для хранения последней позиции мыши
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+    networks:
+      - mouse-tracker-network
+  
+  # Zookeeper - необходим для работы Kafka
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2182:2181"
+    networks:
+      - kafka-net
+
+  # Kafka брокер для обработки сообщений
+  kafka1:
+    image: confluentinc/cp-kafka:latest
+    hostname: kafka1
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka1:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 2
+      KAFKA_DEFAULT_REPLICATION_FACTOR: 2
+      KAFKA_NUM_PARTITIONS: 2
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    networks:
+      - kafka-net
+
+  # Вторая нода Kafka
+  kafka2:
+    image: confluentinc/cp-kafka:latest
+    hostname: kafka2
+    depends_on:
+      - zookeeper
+    ports:
+      - "9093:9093"
+      - "29093:29093"
+    environment:
+      KAFKA_BROKER_ID: 2
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka2:9093,PLAINTEXT_HOST://localhost:29093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 2
+      KAFKA_DEFAULT_REPLICATION_FACTOR: 2
+      KAFKA_NUM_PARTITIONS: 2
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    networks:
+      - kafka-net
+      
+  # Grafana для визуализации данных
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3001:3000"
+    volumes:
+      - grafana-storage:/var/lib/grafana
+    restart: unless-stopped
+    networks:
+      - mouse-tracker-network
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+      
+  # PostgreSQL для хранения данных
+  postgres:
+    image: postgres:latest
+    ports:
+      - "5433:5432"
+    volumes:
+      - kafka-test_postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - mouse-tracker-network
+    environment:
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_DB=mousetracker
+      
+  # Сервис для сохранения позиции мыши из Kafka в Redis
+  kafka-to-redis:
+    build:
+      context: .
+      dockerfile: Dockerfile.python
+    volumes:
+      - .:/app
+      - ./logs:/app/logs
+    command: python kafka_to_redis_consumer.py
+    restart: unless-stopped
+    depends_on:
+      - kafka1
+      - kafka2
+      - redis
+    networks:
+      - mouse-tracker-network
+      - kafka-net
+      
+  # Сервис для сохранения данных из Kafka в PostgreSQL
+  kafka-to-postgres:
+    build:
+      context: .
+      dockerfile: Dockerfile.python
+    volumes:
+      - .:/app
+      - ./logs:/app/logs
+    command: python kafka_to_postgres.py
+    restart: unless-stopped
+    depends_on:
+      - kafka1
+      - kafka2
+      - postgres
+    networks:
+      - mouse-tracker-network
+      - kafka-net
+
+# Создаем общую сеть для коммуникации между контейнерами
+networks:
+  mouse-tracker-network:
+    driver: bridge
+  kafka-net:
+    driver: bridge
+    
+# Тома для хранения данных
+volumes:
+  redis-data: 
+  grafana-storage: 
+  kafka-test_postgres_data: 
