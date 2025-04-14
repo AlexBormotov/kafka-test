@@ -35,7 +35,8 @@ deploy:
   image: google/cloud-sdk:latest
   before_script:
     - echo "Setting up Google Cloud credentials..."
-    - echo "$GOOGLE_CLOUD_KEY" > /tmp/google-cloud-key.json
+    - echo '$GOOGLE_CLOUD_KEY' | tr -d '\r' > /tmp/google-cloud-key.json
+    - cat /tmp/google-cloud-key.json
     - export GOOGLE_APPLICATION_CREDENTIALS=/tmp/google-cloud-key.json
     - gcloud auth activate-service-account $SA_EMAIL --key-file=$GOOGLE_APPLICATION_CREDENTIALS
     - gcloud config set project $GOOGLE_PROJECT_ID
