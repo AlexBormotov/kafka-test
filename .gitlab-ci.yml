@@ -9,7 +9,7 @@ variables:
   DOCKER_DRIVER: overlay2
   VM_NAME: "web-server"
   SA_EMAIL: "grit-provisioner-auto@northern-shield-453920-a4.iam.gserviceaccount.com"
-
+  
 test:
   stage: test
   image: python:3.11
@@ -21,6 +21,7 @@ build:
   stage: build
   image: python:3.11
   script:
+    - echo "Building project..."
     - pip install -r requirements.txt
     - python setup.py build
   artifacts:
@@ -33,14 +34,17 @@ deploy:
   stage: deploy
   image: google/cloud-sdk:latest
   before_script:
+    - echo "Setting up Google Cloud credentials..."
     - echo "$GOOGLE_CLOUD_KEY" > /tmp/google-cloud-key.json
     - export GOOGLE_APPLICATION_CREDENTIALS=/tmp/google-cloud-key.json
-    - gcloud auth activate-service-account --quiet --key-file=$GOOGLE_APPLICATION_CREDENTIALS
-    - gcloud config set project $GOOGLE_PROJECT_ID --quiet
+    - gcloud auth activate-service-account $SA_EMAIL --key-file=$GOOGLE_APPLICATION_CREDENTIALS
+    - gcloud config set project $GOOGLE_PROJECT_ID
   script:
-    - SA_USERNAME="sa_$(echo $SA_EMAIL | cut -d@ -f1)"
-    - gcloud compute os-login describe-profile --quiet
-    - gcloud compute scp --quiet --recurse ./dist/* $SA_USERNAME@$VM_NAME:/home/$SA_USERNAME/kafka-test/ --zone=$GOOGLE_COMPUTE_ZONE --tunnel-through-iap
-    - gcloud compute ssh --quiet $SA_USERNAME@$VM_NAME --zone=$GOOGLE_COMPUTE_ZONE --tunnel-through-iap --command="cd /home/$SA_USERNAME/kafka-test && pip install -r requirements.txt && python setup.py install"
+    - echo "Deploying to web-server..."
+    - apt-get update -qq
+    - apt-get install -qq -y google-cloud-sdk
+    - echo "Copying files to VM..."
+    - gcloud compute scp --recurse ./dist/* $VM_NAME:/home/sa_kafka_test/kafka-test/ --zone=$GOOGLE_COMPUTE_ZONE
+    - gcloud compute ssh $VM_NAME --zone=$GOOGLE_COMPUTE_ZONE --command="cd /home/sa_kafka_test/kafka-test && pip install -r requirements.txt && python setup.py install"
   only:
     - main 
