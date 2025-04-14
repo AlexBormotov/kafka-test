@@ -33,9 +33,20 @@ deploy:
   stage: deploy
   image: python:3.11
   before_script:
-    - echo "Setting up Google Cloud credentials..."
-    - echo "$GOOGLE_CLOUD_KEY" > /tmp/google-cloud-key.json
-    - export GOOGLE_APPLICATION_CREDENTIALS=/tmp/google-cloud-key.json
+    - |
+      echo "Setting up Google Cloud credentials..."
+      echo "Checking if /tmp exists..."
+      ls -la /tmp
+      echo "Creating credentials file..."
+      echo "$GOOGLE_CLOUD_KEY" > /tmp/google-cloud-key.json
+      echo "Checking created file..."
+      ls -l /tmp/google-cloud-key.json
+      echo "First few lines of the credentials file:"
+      head -n 3 /tmp/google-cloud-key.json
+      echo "File permissions:"
+      stat /tmp/google-cloud-key.json
+      export GOOGLE_APPLICATION_CREDENTIALS=/tmp/google-cloud-key.json
+      echo "Environment variable set to: $GOOGLE_APPLICATION_CREDENTIALS"
   script:
     - echo "Deploying to web-server..."
     - apt-get update -qq
