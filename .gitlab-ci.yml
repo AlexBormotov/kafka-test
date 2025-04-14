@@ -32,10 +32,16 @@ build:
 deploy:
   stage: deploy
   image: python:3.11
+  before_script:
+    - echo "Setting up Google Cloud credentials..."
+    - echo $GOOGLE_CLOUD_KEY > /tmp/google-cloud-key.json
+    - export GOOGLE_APPLICATION_CREDENTIALS=/tmp/google-cloud-key.json
   script:
     - echo "Deploying to web-server..."
     - apt-get update -qq
     - apt-get install -qq -y google-cloud-sdk
+    - gcloud auth activate-service-account --key-file=$GOOGLE_APPLICATION_CREDENTIALS
+    - gcloud config set project $GOOGLE_PROJECT_ID
     - echo "Copying files to VM..."
     - gcloud compute scp --recurse ./dist/* $VM_NAME:/home/alexvicbor/kafka-test/ --zone=$GOOGLE_COMPUTE_ZONE
     - gcloud compute ssh $VM_NAME --zone=$GOOGLE_COMPUTE_ZONE --command="cd /home/alexvicbor/kafka-test && pip install -r requirements.txt && python setup.py install"
