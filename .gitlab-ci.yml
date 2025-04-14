@@ -38,7 +38,7 @@ deploy:
       echo "Checking if /tmp exists..."
       ls -la /tmp
       echo "Creating credentials file..."
-      echo "$GOOGLE_CLOUD_KEY" > /tmp/google-cloud-key.json
+      cat $GOOGLE_CLOUD_KEY > /tmp/google-cloud-key.json
       echo "Checking created file..."
       ls -l /tmp/google-cloud-key.json
       echo "First few lines of the credentials file:"
@@ -49,6 +49,9 @@ deploy:
       echo "Environment variable set to: $GOOGLE_APPLICATION_CREDENTIALS"
   script:
     - echo "Deploying to web-server..."
+    - apt-get update -qq
+    - echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
+    - curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key --keyring /usr/share/keyrings/cloud.google.gpg add -
     - apt-get update -qq
     - apt-get install -qq -y google-cloud-sdk
     - gcloud auth activate-service-account --key-file=$GOOGLE_APPLICATION_CREDENTIALS
