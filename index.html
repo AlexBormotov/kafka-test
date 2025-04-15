@@ -1,165 +1,294 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Демонстрация отслеживания движения мыши</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      padding: 20px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
-    
-    .container {
-      width: 100%;
-      max-width: 600px;
-      padding: 20px;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-      margin-bottom: 20px;
-    }
-    
-    #coordinates {
-      background-color: #f0f0f0;
-      padding: 10px;
-      border-radius: 4px;
-      font-family: monospace;
-      min-height: 40px;
-    }
-    
-    .buttons {
-      display: flex;
-      gap: 10px;
-      margin-top: 20px;
-    }
-    
-    button {
-      padding: 8px 16px;
-      border: none;
-      border-radius: 4px;
-      background-color: #4285f4;
-      color: white;
-      cursor: pointer;
-    }
-    
-    button:hover {
-      background-color: #3367d6;
-    }
-    
-    button:disabled {
-      background-color: #ccc;
-      cursor: not-allowed;
-    }
-
-    .status {
-      margin-top: 15px;
-      padding: 10px;
-      border-radius: 4px;
-    }
-
-    .status.success {
-      background-color: #e6f4ea;
-      color: #137333;
-    }
-
-    .status.error {
-      background-color: #fce8e6;
-      color: #c5221f;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Система аналитики</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .container {
+            width: 100%;
+            max-width: 800px;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        h1, h2, h3 {
+            color: #333;
+        }
+        
+        .event-section, .mouse-section, .direct-api-section {
+            margin-top: 30px;
+        }
+        
+        button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            background-color: #4285f4;
+            color: white;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        
+        button:hover {
+            background-color: #3367d6;
+        }
+        
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        
+        #sendCustomEventBtn {
+            background-color: #34a853;
+        }
+        
+        #sendCustomEventBtn:hover {
+            background-color: #2e8f49;
+        }
+        
+        #result, #directApiResult {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f5f5f5;
+            border-radius: 4px;
+        }
+        
+        #coordinates, #directCoordinates {
+            background-color: #f0f0f0;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            min-height: 40px;
+            margin-bottom: 15px;
+        }
+        
+        .status {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        
+        .status.success {
+            background-color: #e6f4ea;
+            color: #137333;
+        }
+        
+        .status.error {
+            background-color: #fce8e6;
+            color: #c5221f;
+        }
+        
+        .buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .section-divider {
+            height: 1px;
+            background-color: #ccc;
+            width: 100%;
+            margin: 30px 0;
+        }
+        
+        .api-info {
+            padding: 10px;
+            background-color: #e8f0fe;
+            border-left: 4px solid #4285f4;
+            margin-bottom: 15px;
+        }
+    </style>
 </head>
 <body>
-  <div class="container">
-    <h1>Отслеживание движения мыши</h1>
-    <p>Эта страница демонстрирует отслеживание движения мыши с ограничением частоты событий (каждые 250 мс).</p>
-    
-    <h2>Текущие координаты:</h2>
-    <div id="coordinates">Двигайте мышью по экрану...</div>
-    
-    <div id="status"></div>
-    
-    <div class="buttons">
-      <button id="startBtn">Запустить отслеживание</button>
-      <button id="stopBtn" disabled>Остановить отслеживание</button>
+    <div class="container">
+        <h1>Система аналитики с Kafka и PostgreSQL</h1>
+        
+        <!-- Секция для событий кнопок -->
+        <div class="event-section">
+            <h2>Отправка событий</h2>
+            <p>Нажмите на кнопку, чтобы отправить событие в Kafka:</p>
+            
+            <button id="sendEventBtn">Отправить событие "click"</button>
+            <button id="sendCustomEventBtn">Отправить custom event</button>
+            
+            <div id="result">Результат отправки будет показан здесь...</div>
+        </div>
+        
+        <div class="section-divider"></div>
+        
+        <!-- Секция для отслеживания мыши -->
+        <div class="mouse-section">
+            <h2>Отслеживание движения мыши</h2>
+            <p>Эта функция отслеживает движение мыши с ограничением частоты событий (каждые 250 мс).</p>
+            
+            <h3>Текущие координаты:</h3>
+            <div id="coordinates">Двигайте мышью по экрану...</div>
+            
+            <div id="mouseStatus" class="status"></div>
+            
+            <div class="buttons">
+                <button id="startBtn">Запустить отслеживание</button>
+                <button id="stopBtn" disabled>Остановить отслеживание</button>
+            </div>
+        </div>
+        
+        <div class="section-divider"></div>
+        
+        <!-- Секция для прямого API координат мыши -->
+        <div class="direct-api-section">
+            <h2>Прямой API для координат мыши</h2>
+            <div class="api-info">
+                <p>Этот раздел использует отдельный API-эндпоинт <code>/api/coordinates</code>, который напрямую публикует данные в топик Kafka <code>mouse_coordinates</code>.</p>
+            </div>
+            
+            <h3>Текущие координаты (прямой API):</h3>
+            <div id="directCoordinates">Двигайте мышью по экрану...</div>
+            
+            <div id="directApiStatus" class="status"></div>
+            
+            <div class="buttons">
+                <button id="startDirectBtn">Запустить прямое отслеживание</button>
+                <button id="stopDirectBtn" disabled>Остановить прямое отслеживание</button>
+            </div>
+            
+            <div id="directApiResult">Статус прямого API будет показан здесь...</div>
+        </div>
     </div>
-  </div>
-
-  <script type="module">
-    import { initMouseTracker, stopMouseTracker } from './mouseTracker.js';
     
-    const coordsDisplay = document.getElementById('coordinates');
-    const statusDisplay = document.getElementById('status');
-    const startBtn = document.getElementById('startBtn');
-    const stopBtn = document.getElementById('stopBtn');
-    
-    // Подписываемся на событие движения мыши для отображения координат
-    document.addEventListener('mousemove', event => {
-      const { clientX, clientY } = event;
-      coordsDisplay.textContent = `X: ${clientX}, Y: ${clientY}`;
-    });
-    
-    // Показываем статус API-запросов
-    window.addEventListener('mousetracker:status', event => {
-      const { success, message } = event.detail;
-      
-      statusDisplay.textContent = message;
-      statusDisplay.className = 'status ' + (success ? 'success' : 'error');
-      
-      // Скрываем сообщение через 3 секунды
-      setTimeout(() => {
-        statusDisplay.textContent = '';
-        statusDisplay.className = 'status';
-      }, 3000);
-    });
-    
-    // Перехватываем события от mouseTracker.js для отображения статуса
-    const originalFetch = window.fetch;
-    window.fetch = function(url, options) {
-      const result = originalFetch.apply(this, arguments);
-      
-      if (url.includes('/api/coordinates') && options.method === 'POST') {
-        // Добавляем обработку успешного ответа
-        result.then(response => {
-          if (response.ok) {
-            const event = new CustomEvent('mousetracker:status', {
-              detail: { success: true, message: 'Координаты успешно отправлены' }
-            });
-            window.dispatchEvent(event);
-          } else {
-            const event = new CustomEvent('mousetracker:status', {
-              detail: { success: false, message: 'Ошибка отправки: ' + response.status }
-            });
-            window.dispatchEvent(event);
-          }
-          return response;
-        })
-        .catch(error => {
-          const event = new CustomEvent('mousetracker:status', {
-            detail: { success: false, message: 'Ошибка сети: ' + error.message }
-          });
-          window.dispatchEvent(event);
+    <script src="/static/js/mouseTracker.js"></script>
+    <script src="/static/js/direct-mouse-tracker.js"></script>
+    <script>
+        // Обработчики для основных событий
+        const sendEventBtn = document.getElementById('sendEventBtn');
+        const sendCustomEventBtn = document.getElementById('sendCustomEventBtn');
+        const resultElement = document.getElementById('result');
+        
+        sendEventBtn.addEventListener('click', function() {
+            sendEvent('click');
         });
-      }
-      
-      return result;
-    };
-    
-    // Обработчики кнопок
-    startBtn.addEventListener('click', () => {
-      initMouseTracker();
-      startBtn.disabled = true;
-      stopBtn.disabled = false;
-    });
-    
-    stopBtn.addEventListener('click', () => {
-      stopMouseTracker();
-      startBtn.disabled = false;
-      stopBtn.disabled = true;
-    });
-  </script>
+        
+        sendCustomEventBtn.addEventListener('click', function() {
+            const customEvent = prompt('Введите тип события:', 'custom_event');
+            if (customEvent) {
+                sendEvent(customEvent);
+            }
+        });
+        
+        function sendEvent(eventType) {
+            resultElement.textContent = 'Отправка события...';
+            
+            fetch('/api/send-data', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    event_type: eventType,
+                    data: { timestamp: new Date().toISOString() }
+                }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                resultElement.textContent = `Событие "${eventType}" успешно отправлено. Ответ: ${JSON.stringify(data)}`;
+            })
+            .catch(error => {
+                resultElement.textContent = `Ошибка при отправке события: ${error.message}`;
+            });
+        }
+        
+        // Обработчики для отслеживания мыши
+        const coordsDisplay = document.getElementById('coordinates');
+        const statusDisplay = document.getElementById('mouseStatus');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        
+        // Подписываемся на событие движения мыши для отображения координат
+        document.addEventListener('mousemove', event => {
+            const { clientX, clientY } = event;
+            coordsDisplay.textContent = `X: ${clientX}, Y: ${clientY}`;
+            
+            // Также обновляем координаты в разделе прямого API
+            document.getElementById('directCoordinates').textContent = `X: ${clientX}, Y: ${clientY}`;
+        });
+        
+        // Показываем статус API-запросов
+        window.addEventListener('mousetracker:status', event => {
+            const { success, message } = event.detail;
+            
+            statusDisplay.textContent = message;
+            statusDisplay.className = 'status ' + (success ? 'success' : 'error');
+            
+            // Скрываем сообщение через 3 секунды
+            setTimeout(() => {
+                statusDisplay.textContent = '';
+                statusDisplay.className = 'status';
+            }, 3000);
+        });
+        
+        // Обработчики кнопок отслеживания мыши
+        startBtn.addEventListener('click', () => {
+            initMouseTracker();
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+        });
+        
+        stopBtn.addEventListener('click', () => {
+            stopMouseTracker();
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+        });
+        
+        // Обработчики для прямого API
+        const directApiStatusDisplay = document.getElementById('directApiStatus');
+        const directApiResultElement = document.getElementById('directApiResult');
+        const startDirectBtn = document.getElementById('startDirectBtn');
+        const stopDirectBtn = document.getElementById('stopDirectBtn');
+        
+        // Показываем статус прямых API-запросов
+        window.addEventListener('direct-mousetracker:status', event => {
+            const { success, message } = event.detail;
+            
+            directApiStatusDisplay.textContent = message;
+            directApiStatusDisplay.className = 'status ' + (success ? 'success' : 'error');
+            
+            // Обновляем статус в результате
+            directApiResultElement.textContent = `Последний статус: ${message} (${new Date().toLocaleTimeString()})`;
+            
+            // Скрываем сообщение статуса через 3 секунды
+            setTimeout(() => {
+                directApiStatusDisplay.textContent = '';
+                directApiStatusDisplay.className = 'status';
+            }, 3000);
+        });
+        
+        // Обработчики кнопок прямого API
+        startDirectBtn.addEventListener('click', () => {
+            initDirectMouseTracker();
+            startDirectBtn.disabled = true;
+            stopDirectBtn.disabled = false;
+            directApiResultElement.textContent = 'Прямое отслеживание запущено...';
+        });
+        
+        stopDirectBtn.addEventListener('click', () => {
+            stopDirectMouseTracker();
+            startDirectBtn.disabled = false;
+            stopDirectBtn.disabled = true;
+            directApiResultElement.textContent = 'Прямое отслеживание остановлено';
+        });
+    </script>
 </body>
 </html> 
