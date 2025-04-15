@@ -95,6 +95,8 @@ deploy:
           echo 'docker-compose.yml found.';
           echo 'Pulling latest images...';
           docker-compose pull; # Загружаем свежие образы
+          echo 'Stopping any existing containers...';
+          docker-compose down; # Останавливаем существующие контейнеры перед запуском новых
           echo 'Building and starting services...';
           # Запускаем в фоновом режиме, пересобираем образы если нужно, удаляем "осиротевшие" контейнеры
           docker-compose up -d --build --remove-orphans;
