@@ -22,7 +22,7 @@ deploy:
   stage: deploy
   image: google/cloud-sdk:latest # Нужен для gcloud команд
   variables:
-    GIT_STRATEGY: none # Не скачиваем код на runner, т.к. клонируем на VM
+    GIT_STRATEGY: clone # Клонируем код на runner, чтобы потом скопировать на VM
   before_script:
     - echo "Setting up Google Cloud credentials..."
     - echo "$GOOGLE_CLOUD_KEY" > /tmp/key.json
@@ -31,9 +31,6 @@ deploy:
     - gcloud config set project $GOOGLE_PROJECT_ID
   script:
     - echo "Deploying to VM via Docker Compose..."
-    # Формируем URL репозитория с токеном доступа CI/CD
-    # CI_JOB_TOKEN имеет доступ к репозиторию только на время выполнения задания
-    - export REPO_URL="https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git"
     # Директория проекта на VM
     - export PROJECT_DIR="/home/sa_kafka_test/kafka-test"
 
@@ -43,9 +40,6 @@ deploy:
       gcloud compute ssh sa_kafka_test@$VM_NAME --zone=$GOOGLE_COMPUTE_ZONE --command="
         echo '--- Checking prerequisites on VM ---';
         sudo apt-get update -qq || true;
-
-        # Проверка и установка Git
-        if ! command -v git &> /dev/null; then echo 'Installing git...'; sudo apt-get install -y -qq git; else echo 'Git already installed.'; fi;
 
         # Проверка и установка Docker
         if ! command -v docker &> /dev/null; then
@@ -74,27 +68,20 @@ deploy:
         echo '--- Prerequisites check done ---';
       " || exit 1 # Прерываем пайплайн, если установка не удалась
 
-    # Шаг 2: Клонирование или обновление репозитория на VM
+    # Шаг 2: Создание директории проекта на VM, если её нет
     - |
       gcloud compute ssh sa_kafka_test@$VM_NAME --zone=$GOOGLE_COMPUTE_ZONE --command="
-        echo '--- Cloning or updating repository ---';
-        # Проверяем, существует ли директория .git
-        if [ -d \"${PROJECT_DIR}/.git\" ]; then
-          echo 'Repository exists, pulling changes...';
-          cd \"${PROJECT_DIR}\" && git checkout main && git fetch origin && git reset --hard origin/main && echo 'Pull successful.';
-        else
-          echo 'Repository does not exist, cloning...';
-          # Удаляем директорию, если она существует, но не является репозиторием
-          rm -rf \"${PROJECT_DIR}\";
-          # Создаем родительскую директорию, если нужно
-          mkdir -p \"\\$(dirname \"${PROJECT_DIR}\")\";
-          # Клонируем только последнюю версию main ветки
-          git clone --depth 1 --branch main \"${REPO_URL}\" \"${PROJECT_DIR}\" && echo 'Clone successful.';
-        fi;
-        echo '--- Repository operation done ---';
-      " || exit 1 # Прерываем пайплайн, если работа с репозиторием не удалась
+        echo '--- Preparing project directory ---';
+        mkdir -p \"${PROJECT_DIR}\";
+        echo '--- Directory prepared ---';
+      " || exit 1
 
-    # Шаг 3: Запуск Docker Compose на VM
+    # Шаг 3: Копирование файлов из runner на VM
+    - echo "Copying project files to VM..."
+    - gcloud compute scp --recurse --zone=$GOOGLE_COMPUTE_ZONE ./* sa_kafka_test@$VM_NAME:$PROJECT_DIR/ || exit 1
+    - echo "Files copied successfully"
+
+    # Шаг 4: Запуск Docker Compose на VM
     - |
       gcloud compute ssh sa_kafka_test@$VM_NAME --zone=$GOOGLE_COMPUTE_ZONE --command="
         echo '--- Running Docker Compose ---';
@@ -117,6 +104,13 @@ deploy:
           exit 1;
         fi;
         echo '--- Docker Compose operation done ---';
+        
+        # Проверяем результат
+        echo '--- Checking deployed services ---';
+        docker-compose ps;
+        echo '--- Testing web server ---';
+        curl -sS http://localhost:3000 | head -n 20;
+        echo '...';
       " || exit 1 # Прерываем пайплайн, если docker-compose не удался
 
   only:
