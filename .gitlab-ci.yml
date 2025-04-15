@@ -40,7 +40,7 @@ deploy:
     # Шаг 1: Проверка/установка необходимых пакетов на VM
     - |
       gcloud compute ssh sa_kafka_test@$VM_NAME --zone=$GOOGLE_COMPUTE_ZONE --command="
-        set -e # Прерываем выполнение при первой ошибке
+        set -e; # Прерываем выполнение при первой ошибке
         echo '--- Checking prerequisites on VM ---';
         sudo apt-get update -qq || true;
 
@@ -71,12 +71,12 @@ deploy:
         if ! command -v docker-compose &> /dev/null; then echo 'Installing docker-compose...'; sudo apt-get install -y -qq docker-compose; else echo 'Docker Compose already installed.'; fi;
 
         echo '--- Prerequisites check done ---\';
-      " || { echo 'ERROR: Prerequisite check/installation failed!' ; exit 1; }
+      "
 
     # Шаг 2: Клонирование или обновление репозитория на VM
     - |
       gcloud compute ssh sa_kafka_test@$VM_NAME --zone=$GOOGLE_COMPUTE_ZONE --command="
-        set -e # Прерываем выполнение при первой ошибке
+        set -e;
         echo '--- Cloning or updating repository ---';
         # Используем одинарные кавычки внутри команды для простоты
         export PROJECT_DIR_VM='$PROJECT_DIR';
@@ -95,12 +95,12 @@ deploy:
           echo 'Clone successful.';
         fi;
         echo \'--- Repository operation done ---\';
-      " || { echo 'ERROR: Repository cloning/update failed!' ; exit 1; }
+      "
 
     # Шаг 3: Запуск Docker Compose на VM
     - |
       gcloud compute ssh sa_kafka_test@$VM_NAME --zone=$GOOGLE_COMPUTE_ZONE --command="
-        set -e # Прерываем выполнение при первой ошибке
+        set -e;
         echo '--- Running Docker Compose ---';
         export PROJECT_DIR_VM='$PROJECT_DIR';
         cd \\\"\$PROJECT_DIR_VM\\\";
@@ -119,7 +119,7 @@ deploy:
           exit 1;
         fi;
         echo '--- Docker Compose operation done ---\';
-      " || { echo 'ERROR: Docker Compose execution failed!' ; exit 1; }
+      "
 
   only:
     - main # Запускаем деплой только для main ветки 
