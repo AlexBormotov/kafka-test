@@ -37,87 +37,97 @@ deploy:
     # Директория проекта на VM
     - export PROJECT_DIR="/home/sa_kafka_test/kafka-test"
 
-    # Шаг 1: Проверка/установка необходимых пакетов на VM (git, docker, docker-compose)
-    # Пользователю sa_kafka_test нужны sudo права для установки!
+    # Шаг 1: Проверка/установка необходимых пакетов на VM
     - |
       gcloud compute ssh sa_kafka_test@$VM_NAME --zone=$GOOGLE_COMPUTE_ZONE --command="
+        set -e # Прерываем выполнение при первой ошибке
         echo '--- Checking prerequisites on VM ---';
         sudo apt-get update -qq || true;
 
-        # Проверка и установка Git
+        # Git
         if ! command -v git &> /dev/null; then echo 'Installing git...'; sudo apt-get install -y -qq git; else echo 'Git already installed.'; fi;
 
-        # Проверка и установка Docker
+        # Docker
         if ! command -v docker &> /dev/null; then
           echo 'Installing docker...';
           sudo apt-get install -y -qq docker.io;
           sudo systemctl start docker;
           sudo systemctl enable docker;
-          # Добавляем пользователя в группу docker. Изменения могут потребовать перезахода.
           sudo usermod -aG docker \$(whoami);
-          echo 'Docker installed. User \$(whoami) added to docker group.';
+          echo 'Docker installed. User \$(whoami) added to docker group. Re-login might be needed for group changes to take effect.';
         else
           echo 'Docker already installed.';
-          # Проверяем, состоит ли пользователь в группе docker
-          if ! groups | grep -q '\bdocker\b'; then
+          # Простая проверка группы
+          if ! groups \$(whoami) | grep -q '\\bdocker\\b'; then
              echo 'User \$(whoami) not in docker group, adding...';
              sudo usermod -aG docker \$(whoami);
-             echo 'User \$(whoami) added to docker group.';
+             echo 'User \$(whoami) added to docker group. Re-login might be needed.';
           else
              echo 'User \$(whoami) already in docker group.';
           fi;
         fi;
 
-        # Проверка и установка Docker Compose
+        # Docker Compose
         if ! command -v docker-compose &> /dev/null; then echo 'Installing docker-compose...'; sudo apt-get install -y -qq docker-compose; else echo 'Docker Compose already installed.'; fi;
 
-        echo '--- Prerequisites check done ---';
-      " || exit 1 # Прерываем пайплайн, если установка не удалась
+        echo '--- Prerequisites check done ---\';
+      " || { echo 'ERROR: Prerequisite check/installation failed!' ; exit 1; }
 
     # Шаг 2: Клонирование или обновление репозитория на VM
     - |
       gcloud compute ssh sa_kafka_test@$VM_NAME --zone=$GOOGLE_COMPUTE_ZONE --command="
+        set -e # Прерываем выполнение при первой ошибке
         echo '--- Cloning or updating repository ---';
+        PROJECT_DIR_ESC=\\\"${PROJECT_DIR}\\\"; # Используем экранированные кавычки для путей с пробелами (хотя здесь их нет)
+        REPO_URL_ESC=\\\"${REPO_URL}\\\";
+
         # Проверяем, существует ли директория .git
-        if [ -d \\"${PROJECT_DIR}/.git\\" ]; then
+        if [ -d \\\"\$PROJECT_DIR_ESC/.git\\\" ]; then
           echo 'Repository exists, pulling changes...';
-          cd \\"${PROJECT_DIR}\\" && git checkout main && git fetch origin && git reset --hard origin/main && echo 'Pull successful.';
+          cd \\\"\$PROJECT_DIR_ESC\\\";
+          git checkout main;
+          git fetch origin;
+          git reset --hard origin/main;
+          echo 'Pull successful.';
         else
-          echo 'Repository does not exist, cloning...';
-          # Удаляем директорию, если она существует, но не является репозиторием
-          rm -rf \\"${PROJECT_DIR}\\";
-          # Создаем родительскую директорию, если нужно
-          mkdir -p \\"$(dirname \\"${PROJECT_DIR}\\")\\";
-          # Клонируем только последнюю версию main ветки
-          git clone --depth 1 --branch main \\"${REPO_URL}\\" \\"${PROJECT_DIR}\\" && echo 'Clone successful.';
+          echo 'Repository directory check failed or not a git repo. Cloning...';
+          # Удаляем директорию полностью перед клонированием
+          rm -rf \\\"\$PROJECT_DIR_ESC\\\";
+          echo \\\"Removed potentially existing directory \$PROJECT_DIR_ESC\\\";
+          # Создаем родительскую директорию
+          mkdir -p \\\"\\\$(dirname \\\"\$PROJECT_DIR_ESC\\\")\\\";
+          echo \\\"Ensured parent directory exists\\\";
+          # Клонируем
+          git clone --depth 1 --branch main \\\"\$REPO_URL_ESC\\\" \\\"\$PROJECT_DIR_ESC\\\";
+          echo 'Clone successful.';
         fi;
-        echo '--- Repository operation done ---';
-      " || exit 1 # Прерываем пайплайн, если работа с репозиторием не удалась
+        echo \'--- Repository operation done ---\';
+      " || { echo 'ERROR: Repository cloning/update failed!' ; exit 1; }
 
     # Шаг 3: Запуск Docker Compose на VM
     - |
       gcloud compute ssh sa_kafka_test@$VM_NAME --zone=$GOOGLE_COMPUTE_ZONE --command="
+        set -e # Прерываем выполнение при первой ошибке
         echo '--- Running Docker Compose ---';
-        cd \\"${PROJECT_DIR}\\" || exit 1; # Выходим, если не удалось перейти в директорию
-        echo 'Current directory: \$(pwd)';
-        echo 'Listing files:';
+        PROJECT_DIR_ESC=\\\"${PROJECT_DIR}\\\";
+        cd \\\"\$PROJECT_DIR_ESC\\\";
+        echo \\\"Current directory: \$(pwd)\\\";
+        echo \'Listing files:\';
         ls -la;
         # Проверяем наличие docker-compose.yml
         if [ -f docker-compose.yml ]; then
-          echo 'docker-compose.yml found.';
-          echo 'Pulling latest images...';
-          docker-compose pull; # Загружаем свежие образы
-          echo 'Building and starting services...';
-          # Запускаем в фоновом режиме, пересобираем образы если нужно, удаляем "осиротевшие" контейнеры
+          echo \'docker-compose.yml found.\';
+          echo \'Pulling latest images...\';
+          docker-compose pull;
+          echo \'Building and starting services...\';
           docker-compose up -d --build --remove-orphans;
-          echo 'Docker Compose finished.';
+          echo \'Docker Compose finished successfully.\';
         else
-          # Если файла нет - выводим ошибку и завершаем пайплайн с ошибкой
-          echo 'ERROR: docker-compose.yml not found in ${PROJECT_DIR}!';
+          echo \'ERROR: docker-compose.yml not found in \$PROJECT_DIR_ESC!\';
           exit 1;
         fi;
-        echo '--- Docker Compose operation done ---';
-      " || exit 1 # Прерываем пайплайн, если docker-compose не удался
+        echo \'--- Docker Compose operation done ---\';
+      " || { echo 'ERROR: Docker Compose execution failed!' ; exit 1; }
 
   only:
     - main # Запускаем деплой только для main ветки 
