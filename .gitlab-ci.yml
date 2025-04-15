@@ -45,6 +45,8 @@ deploy:
     - apt-get install -qq -y google-cloud-sdk
     - echo "Checking build artifacts..."
     - ls -la dist/
+    - echo "Creating target directory..."
+    - gcloud compute ssh sa_kafka_test@$VM_NAME --zone=$GOOGLE_COMPUTE_ZONE --command="mkdir -p /home/sa_kafka_test/kafka-test"
     - echo "Copying files to VM..."
     - gcloud compute scp --recurse dist/* sa_kafka_test@$VM_NAME:/home/sa_kafka_test/kafka-test/ --zone=$GOOGLE_COMPUTE_ZONE
     - gcloud compute ssh sa_kafka_test@$VM_NAME --zone=$GOOGLE_COMPUTE_ZONE --command="cd /home/sa_kafka_test/kafka-test && pip install -r requirements.txt && python setup.py install"
