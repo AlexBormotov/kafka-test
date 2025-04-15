@@ -1,57 +1,123 @@
 stages:
   - test
-  - build
   - deploy
 
 variables:
   GOOGLE_PROJECT_ID: "northern-shield-453920-a4" # Не менять!
   GOOGLE_COMPUTE_ZONE: "us-central1-a" # Не менять!
-  DOCKER_DRIVER: overlay2
+  # DOCKER_DRIVER: overlay2 # Скорее всего больше не нужен для runner'а
   VM_NAME: "web-server"
-  SA_EMAIL: "grit-provisioner-auto@northern-shield-453920-a4.iam.gserviceaccount.com"
+  # SA_EMAIL: "..." # Больше не используется напрямую в скриптах деплоя
   
 test:
   stage: test
   image: python:3.11
   script:
+    - echo "Running tests..."
     - pip install -r requirements.txt
     - python -m pytest
-
-build:
-  stage: build
-  image: python:3.11
-  script:
-    - echo "Building project..."
-    - pip install -r requirements.txt
-    - python setup.py build
-    - python setup.py sdist
-  artifacts:
-    paths:
-      - dist/
-      - requirements.txt
-    expire_in: 1 week
+  # Можно добавить артефакты с отчетами тестов, если нужно
 
 deploy:
   stage: deploy
-  image: google/cloud-sdk:latest
+  image: google/cloud-sdk:latest # Нужен для gcloud команд
+  variables:
+    GIT_STRATEGY: none # Не скачиваем код на runner, т.к. клонируем на VM
   before_script:
     - echo "Setting up Google Cloud credentials..."
     - echo "$GOOGLE_CLOUD_KEY" > /tmp/key.json
+    # Активируем сервисный аккаунт, который будет выполнять команды на VM
     - gcloud auth activate-service-account --key-file=/tmp/key.json
     - gcloud config set project $GOOGLE_PROJECT_ID
   script:
-    - echo "Deploying to web-server..."
-    - apt-get update -qq
-    - apt-get install -qq -y google-cloud-sdk
-    - echo "Checking build artifacts..."
-    - ls -la dist/
-    - ls -la requirements.txt
-    - echo "Creating target directory..."
-    - gcloud compute ssh sa_kafka_test@$VM_NAME --zone=$GOOGLE_COMPUTE_ZONE --command="mkdir -p /home/sa_kafka_test/kafka-test"
-    - echo "Copying files to VM..."
-    - gcloud compute scp requirements.txt sa_kafka_test@$VM_NAME:/home/sa_kafka_test/kafka-test/ --zone=$GOOGLE_COMPUTE_ZONE
-    - gcloud compute scp --recurse dist/* sa_kafka_test@$VM_NAME:/home/sa_kafka_test/kafka-test/ --zone=$GOOGLE_COMPUTE_ZONE
-    - echo "Installing package on VM..."
-    - gcloud compute ssh sa_kafka_test@$VM_NAME --zone=$GOOGLE_COMPUTE_ZONE --command="cd /home/sa_kafka_test/kafka-test && pip install -r requirements.txt && pip install *.tar.gz"
+    - echo "Deploying to VM via Docker Compose..."
+    # Формируем URL репозитория с токеном доступа CI/CD
+    # CI_JOB_TOKEN имеет доступ к репозиторию только на время выполнения задания
+    - export REPO_URL="https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git"
+    # Директория проекта на VM
+    - export PROJECT_DIR="/home/sa_kafka_test/kafka-test"
+
+    # Шаг 1: Проверка/установка необходимых пакетов на VM (git, docker, docker-compose)
+    # Пользователю sa_kafka_test нужны sudo права для установки!
+    - |
+      gcloud compute ssh sa_kafka_test@$VM_NAME --zone=$GOOGLE_COMPUTE_ZONE --command="
+        echo '--- Checking prerequisites on VM ---';
+        sudo apt-get update -qq || true;
+
+        # Проверка и установка Git
+        if ! command -v git &> /dev/null; then echo 'Installing git...'; sudo apt-get install -y -qq git; else echo 'Git already installed.'; fi;
+
+        # Проверка и установка Docker
+        if ! command -v docker &> /dev/null; then
+          echo 'Installing docker...';
+          sudo apt-get install -y -qq docker.io;
+          sudo systemctl start docker;
+          sudo systemctl enable docker;
+          # Добавляем пользователя в группу docker. Изменения могут потребовать перезахода.
+          sudo usermod -aG docker \$(whoami);
+          echo 'Docker installed. User \$(whoami) added to docker group.';
+        else
+          echo 'Docker already installed.';
+          # Проверяем, состоит ли пользователь в группе docker
+          if ! groups | grep -q '\bdocker\b'; then
+             echo 'User \$(whoami) not in docker group, adding...';
+             sudo usermod -aG docker \$(whoami);
+             echo 'User \$(whoami) added to docker group.';
+          else
+             echo 'User \$(whoami) already in docker group.';
+          fi;
+        fi;
+
+        # Проверка и установка Docker Compose
+        if ! command -v docker-compose &> /dev/null; then echo 'Installing docker-compose...'; sudo apt-get install -y -qq docker-compose; else echo 'Docker Compose already installed.'; fi;
+
+        echo '--- Prerequisites check done ---';
+      " || exit 1 # Прерываем пайплайн, если установка не удалась
+
+    # Шаг 2: Клонирование или обновление репозитория на VM
+    - |
+      gcloud compute ssh sa_kafka_test@$VM_NAME --zone=$GOOGLE_COMPUTE_ZONE --command="
+        echo '--- Cloning or updating repository ---';
+        # Проверяем, существует ли директория .git
+        if [ -d \\"${PROJECT_DIR}/.git\\" ]; then
+          echo 'Repository exists, pulling changes...';
+          cd \\"${PROJECT_DIR}\\" && git checkout main && git fetch origin && git reset --hard origin/main && echo 'Pull successful.';
+        else
+          echo 'Repository does not exist, cloning...';
+          # Удаляем директорию, если она существует, но не является репозиторием
+          rm -rf \\"${PROJECT_DIR}\\";
+          # Создаем родительскую директорию, если нужно
+          mkdir -p \\"$(dirname \\"${PROJECT_DIR}\\")\\";
+          # Клонируем только последнюю версию main ветки
+          git clone --depth 1 --branch main \\"${REPO_URL}\\" \\"${PROJECT_DIR}\\" && echo 'Clone successful.';
+        fi;
+        echo '--- Repository operation done ---';
+      " || exit 1 # Прерываем пайплайн, если работа с репозиторием не удалась
+
+    # Шаг 3: Запуск Docker Compose на VM
+    - |
+      gcloud compute ssh sa_kafka_test@$VM_NAME --zone=$GOOGLE_COMPUTE_ZONE --command="
+        echo '--- Running Docker Compose ---';
+        cd \\"${PROJECT_DIR}\\" || exit 1; # Выходим, если не удалось перейти в директорию
+        echo 'Current directory: \$(pwd)';
+        echo 'Listing files:';
+        ls -la;
+        # Проверяем наличие docker-compose.yml
+        if [ -f docker-compose.yml ]; then
+          echo 'docker-compose.yml found.';
+          echo 'Pulling latest images...';
+          docker-compose pull; # Загружаем свежие образы
+          echo 'Building and starting services...';
+          # Запускаем в фоновом режиме, пересобираем образы если нужно, удаляем "осиротевшие" контейнеры
+          docker-compose up -d --build --remove-orphans;
+          echo 'Docker Compose finished.';
+        else
+          # Если файла нет - выводим ошибку и завершаем пайплайн с ошибкой
+          echo 'ERROR: docker-compose.yml not found in ${PROJECT_DIR}!';
+          exit 1;
+        fi;
+        echo '--- Docker Compose operation done ---';
+      " || exit 1 # Прерываем пайплайн, если docker-compose не удался
+
   only:
-    - main 
+    - main # Запускаем деплой только для main ветки 
