@@ -79,17 +79,17 @@ deploy:
       gcloud compute ssh sa_kafka_test@$VM_NAME --zone=$GOOGLE_COMPUTE_ZONE --command="
         echo '--- Cloning or updating repository ---';
         # Проверяем, существует ли директория .git
-        if [ -d \\\"${PROJECT_DIR}/.git\\\" ]; then
+        if [ -d \"${PROJECT_DIR}/.git\" ]; then
           echo 'Repository exists, pulling changes...';
-          cd \\\"${PROJECT_DIR}\\\" && git checkout main && git fetch origin && git reset --hard origin/main && echo 'Pull successful.';
+          cd \"${PROJECT_DIR}\" && git checkout main && git fetch origin && git reset --hard origin/main && echo 'Pull successful.';
         else
           echo 'Repository does not exist, cloning...';
           # Удаляем директорию, если она существует, но не является репозиторием
-          rm -rf \\\"${PROJECT_DIR}\\\";
+          rm -rf \"${PROJECT_DIR}\";
           # Создаем родительскую директорию, если нужно
-          mkdir -p \\\"\\$(dirname \\\"${PROJECT_DIR}\\\")\\\";
+          mkdir -p \"\\$(dirname \"${PROJECT_DIR}\")\";
           # Клонируем только последнюю версию main ветки
-          git clone --depth 1 --branch main \\\"${REPO_URL}\\\" \\\"${PROJECT_DIR}\\\" && echo 'Clone successful.';
+          git clone --depth 1 --branch main \"${REPO_URL}\" \"${PROJECT_DIR}\" && echo 'Clone successful.';
         fi;
         echo '--- Repository operation done ---';
       " || exit 1 # Прерываем пайплайн, если работа с репозиторием не удалась
@@ -98,7 +98,7 @@ deploy:
     - |
       gcloud compute ssh sa_kafka_test@$VM_NAME --zone=$GOOGLE_COMPUTE_ZONE --command="
         echo '--- Running Docker Compose ---';
-        cd \\\"${PROJECT_DIR}\\\" || exit 1; # Выходим, если не удалось перейти в директорию
+        cd \"${PROJECT_DIR}\" || exit 1;
         echo 'Current directory: \\$(pwd)';
         echo 'Listing files:';
         ls -la;
