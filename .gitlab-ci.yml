@@ -78,27 +78,20 @@ deploy:
       gcloud compute ssh sa_kafka_test@$VM_NAME --zone=$GOOGLE_COMPUTE_ZONE --command="
         set -e # Прерываем выполнение при первой ошибке
         echo '--- Cloning or updating repository ---';
-        PROJECT_DIR_ESC=\\\"${PROJECT_DIR}\\\"; # Используем экранированные кавычки для путей с пробелами (хотя здесь их нет)
-        REPO_URL_ESC=\\\"${REPO_URL}\\\";
+        # Используем одинарные кавычки внутри команды для простоты
+        export PROJECT_DIR_VM='$PROJECT_DIR';
+        export REPO_URL_VM='$REPO_URL';
 
         # Проверяем, существует ли директория .git
-        if [ -d \\\"\$PROJECT_DIR_ESC/.git\\\" ]; then
+        if [ -d \\\"\$PROJECT_DIR_VM/.git\\\" ]; then
           echo 'Repository exists, pulling changes...';
-          cd \\\"\$PROJECT_DIR_ESC\\\";
-          git checkout main;
-          git fetch origin;
-          git reset --hard origin/main;
+          cd \\\"\$PROJECT_DIR_VM\\\"; git checkout main; git fetch origin; git reset --hard origin/main;
           echo 'Pull successful.';
         else
           echo 'Repository directory check failed or not a git repo. Cloning...';
-          # Удаляем директорию полностью перед клонированием
-          rm -rf \\\"\$PROJECT_DIR_ESC\\\";
-          echo \\\"Removed potentially existing directory \$PROJECT_DIR_ESC\\\";
-          # Создаем родительскую директорию
-          mkdir -p \\\"\\\$(dirname \\\"\$PROJECT_DIR_ESC\\\")\\\";
-          echo \\\"Ensured parent directory exists\\\";
-          # Клонируем
-          git clone --depth 1 --branch main \\\"\$REPO_URL_ESC\\\" \\\"\$PROJECT_DIR_ESC\\\";
+          rm -rf \\\"\$PROJECT_DIR_VM\\\"; echo \\\"Removed potentially existing directory \$PROJECT_DIR_VM\\\";
+          mkdir -p \\\"\$(dirname \\\"\$PROJECT_DIR_VM\\\")\\\"; echo \\\"Ensured parent directory exists\\\";
+          git clone --depth 1 --branch main \\\"\$REPO_URL_VM\\\" \\\"\$PROJECT_DIR_VM\\\";
           echo 'Clone successful.';
         fi;
         echo \'--- Repository operation done ---\';
@@ -109,24 +102,23 @@ deploy:
       gcloud compute ssh sa_kafka_test@$VM_NAME --zone=$GOOGLE_COMPUTE_ZONE --command="
         set -e # Прерываем выполнение при первой ошибке
         echo '--- Running Docker Compose ---';
-        PROJECT_DIR_ESC=\\\"${PROJECT_DIR}\\\";
-        cd \\\"\$PROJECT_DIR_ESC\\\";
+        export PROJECT_DIR_VM='$PROJECT_DIR';
+        cd \\\"\$PROJECT_DIR_VM\\\";
         echo \\\"Current directory: \$(pwd)\\\";
         echo \'Listing files:\';
         ls -la;
         # Проверяем наличие docker-compose.yml
         if [ -f docker-compose.yml ]; then
-          echo \'docker-compose.yml found.\';
-          echo \'Pulling latest images...\';
+          echo 'docker-compose.yml found. Pulling latest images...';
           docker-compose pull;
-          echo \'Building and starting services...\';
+          echo 'Building and starting services...';
           docker-compose up -d --build --remove-orphans;
-          echo \'Docker Compose finished successfully.\';
+          echo 'Docker Compose finished successfully.';
         else
-          echo \'ERROR: docker-compose.yml not found in \$PROJECT_DIR_ESC!\';
+          echo 'ERROR: docker-compose.yml not found in $PROJECT_DIR_VM!';
           exit 1;
         fi;
-        echo \'--- Docker Compose operation done ---\';
+        echo '--- Docker Compose operation done ---\';
       " || { echo 'ERROR: Docker Compose execution failed!' ; exit 1; }
 
   only:
