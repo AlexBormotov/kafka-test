@@ -7,6 +7,7 @@ variables:
   GOOGLE_COMPUTE_ZONE: "us-central1-a" # Не менять!
   # DOCKER_DRIVER: overlay2 # Скорее всего больше не нужен для runner'а
   VM_NAME: "web-server"
+  VM_USER: "sa_kafka_test" # Имя пользователя на VM
   # SA_EMAIL: "..." # Больше не используется напрямую в скриптах деплоя
   
 test:
@@ -32,12 +33,12 @@ deploy:
   script:
     - echo "Deploying to VM via Docker Compose..."
     # Директория проекта на VM
-    - export PROJECT_DIR="/home/sa_kafka_test/kafka-test"
+    - export PROJECT_DIR="/home/$VM_USER/kafka-test"
 
     # Шаг 1: Проверка/установка необходимых пакетов на VM (git, docker, docker-compose)
-    # Пользователю sa_kafka_test нужны sudo права для установки!
+    # Пользователю $VM_USER нужны sudo права для установки!
     - |
-      gcloud compute ssh sa_kafka_test@$VM_NAME --zone=$GOOGLE_COMPUTE_ZONE --command="
+      gcloud compute ssh $VM_USER@$VM_NAME --zone=$GOOGLE_COMPUTE_ZONE --command="
         echo '--- Checking prerequisites on VM ---';
         sudo apt-get update -qq || true;
 
@@ -70,7 +71,7 @@ deploy:
 
     # Шаг 2: Создание директории проекта на VM, если её нет
     - |
-      gcloud compute ssh sa_kafka_test@$VM_NAME --zone=$GOOGLE_COMPUTE_ZONE --command="
+      gcloud compute ssh $VM_USER@$VM_NAME --zone=$GOOGLE_COMPUTE_ZONE --command="
         echo '--- Preparing project directory ---';
         mkdir -p \"${PROJECT_DIR}\";
         echo '--- Directory prepared ---';
@@ -78,12 +79,12 @@ deploy:
 
     # Шаг 3: Копирование файлов из runner на VM
     - echo "Copying project files to VM..."
-    - gcloud compute scp --recurse --zone=$GOOGLE_COMPUTE_ZONE ./* sa_kafka_test@$VM_NAME:$PROJECT_DIR/ || exit 1
+    - gcloud compute scp --recurse --zone=$GOOGLE_COMPUTE_ZONE ./* $VM_USER@$VM_NAME:$PROJECT_DIR/ || exit 1
     - echo "Files copied successfully"
 
     # Шаг 4: Запуск Docker Compose на VM
     - |
-      gcloud compute ssh sa_kafka_test@$VM_NAME --zone=$GOOGLE_COMPUTE_ZONE --command="
+      gcloud compute ssh $VM_USER@$VM_NAME --zone=$GOOGLE_COMPUTE_ZONE --command="
         echo '--- Running Docker Compose ---';
         cd \"${PROJECT_DIR}\" || exit 1;
         echo 'Current directory: \\$(pwd)';
