@@ -15,16 +15,21 @@ services:
     networks:
       - mouse-tracker-network
 
-  # API сервер на Node.js для логирования координат мыши
+  # API сервер на Flask для обработки запросов и отправки данных в Kafka
   api:
-    image: node:alpine
+    build:
+      context: .
+      dockerfile: Dockerfile.python
     volumes:
       - .:/app
       - ./logs:/app/logs
     working_dir: /app
-    command: sh -c "mkdir -p /app/logs && node backend-mock.js"
+    command: python app.py
+    environment:
+      - FLASK_APP=app.py
+      - FLASK_ENV=development
     ports:
-      - "3001:3000"
+      - "5000:5000"
     restart: unless-stopped
     networks:
       - mouse-tracker-network
