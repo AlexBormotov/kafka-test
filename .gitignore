@@ -63,3 +63,9 @@ Thumbs.db
 .vscode/
 .idea/ 
 .cursor/
+
+# Конфиденциальные файлы и ключи
+*.pem
+*.key
+grit-provisioner-key.json
+secret*.json
