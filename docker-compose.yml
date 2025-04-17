@@ -123,7 +123,6 @@ services:
       - "5433:5432"
     volumes:
       - kafka-test_postgres_data:/var/lib/postgresql/data
-      - ./postgres-conf/pg_hba.conf:/var/lib/postgresql/data/pg_hba.conf:ro
     restart: unless-stopped
     networks:
       - mouse-tracker-network
@@ -131,6 +130,8 @@ services:
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_USER=postgres
       - POSTGRES_DB=mousetracker
+      - POSTGRES_HOST_AUTH_METHOD=scram-sha-256
+      - POSTGRES_INITDB_ARGS=--auth-host=scram-sha-256 --auth-local=trust
       
   # Сервис для сохранения позиции мыши из Kafka в Redis
   kafka-to-redis:
