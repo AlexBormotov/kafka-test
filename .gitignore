@@ -62,3 +62,4 @@ Thumbs.db
 .env
 .vscode/
 .idea/ 
+.cursor/

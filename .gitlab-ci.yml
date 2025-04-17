@@ -114,6 +114,10 @@ deploy:
         echo '--- Testing web server ---';
         curl -sS http://localhost:3000 | head -n 20;
         echo '...';
+        echo '--- Testing with domain name ---';
+        echo 'Note: Domain kafka-test.info should point to this server IP to work properly';
+        curl -sS -H 'Host: kafka-test.info' http://localhost:3000 | head -n 20;
+        echo '...';
       " || exit 1 # Прерываем пайплайн, если docker-compose не удался
 
   only:
