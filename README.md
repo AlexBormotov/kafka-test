@@ -81,7 +81,7 @@ docker-compose up -d
 4. Настройка источника данных PostgreSQL:
    - Откройте "Настройки" → "Data Sources" → "Add data source"
    - Выберите "PostgreSQL"
-   - Настройте подключение: хост - `localhost`. порт - `5433`, база данных - `mousetracker`, пользователь - `postgres`, пароль - `postgres`
+   - Настройте подключение: хост - `localhost`. порт - `5432`, база данных - `mousetracker`, пользователь - `postgres`, пароль - `postgres`
 
 ## Интеграция в свой проект
 
