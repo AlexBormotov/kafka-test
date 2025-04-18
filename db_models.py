@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 DB_USER = 'postgres'
 DB_PASS = 'postgres'
 DB_HOST = 'postgres'  # Имя сервиса из docker-compose
-DB_PORT = '5433'
+DB_PORT = '5432'
 DB_NAME = 'mousetracker'  # Соответствует POSTGRES_DB в docker-compose
 
 # Настройка соединения с базой данных
