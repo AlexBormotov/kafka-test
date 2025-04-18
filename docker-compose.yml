@@ -1,3 +1,7 @@
+# Docker-compose конфигурация для kafka-test
+# Версия: 2.0
+# Дата обновления: 2025-04-18
+# Описание: Исправлены конфликты сетей и томов
 version: '3'
 
 services:
@@ -13,7 +17,7 @@ services:
       - api
     restart: unless-stopped
     networks:
-      - kafka_mouse_tracker_net
+      - mouse-tracker-network
 
   # API сервер на Flask для обработки запросов и отправки данных в Kafka
   api:
@@ -32,8 +36,8 @@ services:
       - "5000:5000"
     restart: unless-stopped
     networks:
-      - kafka_mouse_tracker_net
-      - kafka_broker_net
+      - mouse-tracker-network
+      - kafka-net
       
   # Redis сервер для хранения последней позиции мыши
   redis:
@@ -44,7 +48,7 @@ services:
       - redis-data:/data
     restart: unless-stopped
     networks:
-      - kafka_mouse_tracker_net
+      - mouse-tracker-network
   
   # Zookeeper - необходим для работы Kafka
   zookeeper:
@@ -55,7 +59,7 @@ services:
     ports:
       - "2182:2181"
     networks:
-      - kafka_broker_net
+      - kafka-net
 
   # Kafka брокер для обработки сообщений
   kafka1:
@@ -77,7 +81,7 @@ services:
       KAFKA_NUM_PARTITIONS: 2
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
     networks:
-      - kafka_broker_net
+      - kafka-net
 
   # Вторая нода Kafka
   kafka2:
@@ -99,7 +103,7 @@ services:
       KAFKA_NUM_PARTITIONS: 2
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
     networks:
-      - kafka_broker_net
+      - kafka-net
       
   # Grafana для визуализации данных
   grafana:
@@ -110,7 +114,7 @@ services:
       - grafana-storage:/var/lib/grafana
     restart: unless-stopped
     networks:
-      - kafka_mouse_tracker_net
+      - mouse-tracker-network
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin
       - GF_SECURITY_ADMIN_USER=admin
@@ -122,11 +126,11 @@ services:
     ports:
       - "0.0.0.0:5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - kafka-test_postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
     networks:
-      - kafka_mouse_tracker_net
-      - kafka_broker_net
+      - mouse-tracker-network
+      - kafka-net
     environment:
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_USER=postgres
@@ -150,8 +154,8 @@ services:
       - kafka2
       - redis
     networks:
-      - kafka_mouse_tracker_net
-      - kafka_broker_net
+      - mouse-tracker-network
+      - kafka-net
       
   # Сервис для сохранения данных из Kafka в PostgreSQL
   kafka-to-postgres:
@@ -168,15 +172,15 @@ services:
       - kafka2
       - postgres
     networks:
-      - kafka_mouse_tracker_net
-      - kafka_broker_net
+      - mouse-tracker-network
+      - kafka-net
 
 # Создаем общую сеть для коммуникации между контейнерами
 networks:
-  kafka_mouse_tracker_net:
+  mouse-tracker-network:
     name: kafka_mouse_tracker_net
     driver: bridge
-  kafka_broker_net:
+  kafka-net:
     name: kafka_broker_net
     driver: bridge
     
@@ -186,5 +190,5 @@ volumes:
     name: kafka_test_redis_data
   grafana-storage:
     name: kafka_test_grafana_storage
-  postgres_data:
+  kafka-test_postgres_data:
     name: kafka_test_postgres_data
