@@ -174,17 +174,12 @@ services:
 # Создаем общую сеть для коммуникации между контейнерами
 networks:
   kafka_mouse_tracker_net:
-    name: kafka_mouse_tracker_net
     driver: bridge
   kafka_broker_net:
-    name: kafka_broker_net
     driver: bridge
     
 # Тома для хранения данных
 volumes:
   redis-data:
-    name: kafka_test_redis_data
   grafana-storage:
-    name: kafka_test_grafana_storage
   postgres_data:
-    name: kafka_test_postgres_data
