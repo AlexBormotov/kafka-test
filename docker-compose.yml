@@ -120,12 +120,13 @@ services:
   postgres:
     image: postgres:latest
     ports:
-      - "0.0.0.0:5433:5432"
+      - "0.0.0.0:5432:5432"
     volumes:
       - kafka-test_postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
     networks:
       - mouse-tracker-network
+      - kafka-net
     environment:
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_USER=postgres
