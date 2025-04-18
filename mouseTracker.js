@@ -34,7 +34,7 @@ function sendCoordinates(x, y) {
   };
 
   // URL API сервиса для логирования координат
-  const apiUrl = 'http://localhost:3000/api/coordinates';
+  const apiUrl = '/api/coordinates';
 
   fetch(apiUrl, {
     method: 'POST',

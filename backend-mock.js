@@ -151,7 +151,7 @@ const server = http.createServer((req, res) => {
 });
 
 // Порт сервера
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 5000;
 
 // Запускаем сервер
 server.listen(PORT, () => {
