@@ -13,7 +13,7 @@ services:
       - api
     restart: unless-stopped
     networks:
-      - mouse-tracker-network
+      - kafka_mouse_tracker_net
 
   # API сервер на Flask для обработки запросов и отправки данных в Kafka
   api:
@@ -32,8 +32,8 @@ services:
       - "5000:5000"
     restart: unless-stopped
     networks:
-      - mouse-tracker-network
-      - kafka-net
+      - kafka_mouse_tracker_net
+      - kafka_broker_net
       
   # Redis сервер для хранения последней позиции мыши
   redis:
@@ -44,7 +44,7 @@ services:
       - redis-data:/data
     restart: unless-stopped
     networks:
-      - mouse-tracker-network
+      - kafka_mouse_tracker_net
   
   # Zookeeper - необходим для работы Kafka
   zookeeper:
@@ -55,7 +55,7 @@ services:
     ports:
       - "2182:2181"
     networks:
-      - kafka-net
+      - kafka_broker_net
 
   # Kafka брокер для обработки сообщений
   kafka1:
@@ -77,7 +77,7 @@ services:
       KAFKA_NUM_PARTITIONS: 2
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
     networks:
-      - kafka-net
+      - kafka_broker_net
 
   # Вторая нода Kafka
   kafka2:
@@ -99,7 +99,7 @@ services:
       KAFKA_NUM_PARTITIONS: 2
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
     networks:
-      - kafka-net
+      - kafka_broker_net
       
   # Grafana для визуализации данных
   grafana:
@@ -110,7 +110,7 @@ services:
       - grafana-storage:/var/lib/grafana
     restart: unless-stopped
     networks:
-      - mouse-tracker-network
+      - kafka_mouse_tracker_net
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin
       - GF_SECURITY_ADMIN_USER=admin
@@ -122,11 +122,11 @@ services:
     ports:
       - "0.0.0.0:5432:5432"
     volumes:
-      - kafka-test_postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
     networks:
-      - mouse-tracker-network
-      - kafka-net
+      - kafka_mouse_tracker_net
+      - kafka_broker_net
     environment:
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_USER=postgres
@@ -150,8 +150,8 @@ services:
       - kafka2
       - redis
     networks:
-      - mouse-tracker-network
-      - kafka-net
+      - kafka_mouse_tracker_net
+      - kafka_broker_net
       
   # Сервис для сохранения данных из Kafka в PostgreSQL
   kafka-to-postgres:
@@ -168,18 +168,23 @@ services:
       - kafka2
       - postgres
     networks:
-      - mouse-tracker-network
-      - kafka-net
+      - kafka_mouse_tracker_net
+      - kafka_broker_net
 
 # Создаем общую сеть для коммуникации между контейнерами
 networks:
-  mouse-tracker-network:
+  kafka_mouse_tracker_net:
+    name: kafka_mouse_tracker_net
     driver: bridge
-  kafka-net:
+  kafka_broker_net:
+    name: kafka_broker_net
     driver: bridge
     
 # Тома для хранения данных
 volumes:
-  redis-data: 
-  grafana-storage: 
-  kafka-test_postgres_data: 
+  redis-data:
+    name: kafka_test_redis_data
+  grafana-storage:
+    name: kafka_test_grafana_storage
+  postgres_data:
+    name: kafka_test_postgres_data
