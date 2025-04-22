@@ -113,3 +113,51 @@ stopMouseTracker();
 - redis_tools.py
 - kafka_consumer_for_coordinates.py
 - redis-only.yml
+
+## Диагностика и отладка
+
+В случае возникновения проблем с системой:
+
+### Проверка состояния контейнеров
+
+```bash
+docker-compose ps
+```
+
+### Просмотр логов
+
+Для просмотра логов конкретного сервиса:
+
+```bash
+docker-compose logs -f [имя_сервиса]
+```
+
+Доступные сервисы:
+- api
+- kafka1
+- kafka2
+- redis
+- zookeeper
+- postgres
+- kafka-to-redis
+- kafka-to-postgres
+- grafana
+- nginx
+
+### Проверка соединения с Kafka
+
+```bash
+docker-compose exec kafka1 kafka-topics --list --bootstrap-server kafka1:9092
+```
+
+### Просмотр данных в PostgreSQL
+
+```bash
+docker-compose exec postgres psql -U postgres -d mousetracker -c "SELECT * FROM mouse_coordinates LIMIT 10;"
+```
+
+### Проверка данных в Redis
+
+```bash
+docker-compose exec redis redis-cli KEYS "*"
+```
